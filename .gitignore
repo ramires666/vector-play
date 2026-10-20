@@ -1,0 +1,10 @@
+﻿.venv/
+.venv-w2v/
+models/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.sqlite3-*
+.pytest_cache/
+.env
+.env.*
