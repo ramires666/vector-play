@@ -53,7 +53,7 @@ python3 -m venv .venv
 docker compose up -d --build
 ```
 
-- Контейнер работает в сети хоста (`network_mode: host`) и слушает только `127.0.0.1:58765`: отдельная Docker-сеть не создаётся, снаружи сервис доступен только через nginx. Нужен прямой доступ из LAN без nginx — закомментируйте `network_mode`, раскомментируйте `ports: "58765:58765"` и поставьте `VECTOR_CALC_HOST: 0.0.0.0` плюс `VECTOR_CALC_TRUST_PROXY: "0"`.
+- Приложение слушает порт только на `127.0.0.1` (`"127.0.0.1:58765:58765"` в `docker-compose.yml`): снаружи доступен только nginx. Нужен прямой доступ из LAN без nginx — замените на `"58765:58765"` и поставьте `VECTOR_CALC_TRUST_PROXY: "0"`.
 - `memories.sqlite3` создаётся и обновляется прямо в папке проекта: база **вне** образа, переживает перезапуски, пересборки и обновления. Существующий файл используется как есть.
 - `models/` тоже на хосте: при первом запуске контейнер скачает туда модель (долго, прогресс в логах) и повторно скачивать не будет.
 - Контейнер работает не от root. Если папка проекта принадлежит другому пользователю, пересоберите с его id: `VECTORPLAY_UID=$(id -u) VECTORPLAY_GID=$(id -g) docker compose up -d --build`. Крайний случай — раскомментировать `user: "0:0"` в compose.
@@ -62,7 +62,7 @@ docker compose up -d --build
 
 ### Если Docker не создаёт сеть
 
-Ошибка `failed to create network vector-play_default: all predefined address pools have been fully subnetted` означает, что у демона закончились подсети для сетей — обычно потому, что на сервере накопилось много старых compose-проектов. В этом compose-файле сеть не создаётся вовсе (`network_mode: host`), поэтому ошибка появиться не должна. Если вы вернулись к bridge-варианту и она повторилась:
+Ошибка `failed to create network vector-play_default: all predefined address pools have been fully subnetted` означает, что у демона закончились подсети для сетей — обычно потому, что на сервере накопилось много старых compose-проектов. Compose создаёт для проекта отдельную сеть, поэтому ошибка появляется при `docker compose up`:
 
 ```bash
 docker network ls
@@ -86,6 +86,8 @@ sudo systemctl restart docker
 
 Проверьте, что `10.200.0.0/16` не пересекается с вашей LAN (`ip route`).
 
+Если трогать демон нельзя, есть вариант вообще без Docker-сети: в `docker-compose.yml` закомментируйте `ports`, добавьте `network_mode: host` и поставьте `VECTOR_CALC_HOST: 127.0.0.1` — контейнер будет слушать loopback хоста напрямую.
+
 ## Безопасность
 
 Сервис рассчитан на работу за nginx — готовый пример с TLS, HTTP/2, HSTS и rate limiting лежит в `deploy/nginx-vectorplay.conf`. Защита на стороне приложения:
@@ -98,7 +100,7 @@ sudo systemctl restart docker
 - Заголовки безопасности на каждом ответе: CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control: no-store`.
 - SQLite: параметризованные запросы, `busy_timeout`, предел коллекции (по умолчанию 50 000 записей, старые вытесняются).
 - Контейнер: непривилегированный пользователь, read-only rootfs, `cap_drop: ALL`, `no-new-privileges`, лимит PID, ротация логов.
-- Порт приложения слушается только на `127.0.0.1`, так что мимо nginx (без TLS и его лимитов) пройти нельзя.
+- Порт приложения публикуется только на `127.0.0.1`, так что мимо nginx (без TLS и его лимитов) пройти нельзя.
 - Мониторинг: `GET /api/health` (в примере nginx доступен только с localhost).
 
 Важно: `VECTOR_CALC_TRUST_PROXY=1` имеет смысл только если nginx стоит непосредственно перед приложением и **перезаписывает** `X-Forwarded-For` (как в примере), а порт приложения недоступен напрямую. Иначе клиент подделает свой IP и обойдёт лимиты.
