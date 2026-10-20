@@ -12,11 +12,10 @@ services:
     # user: "0:0"   # запасной вариант, если контейнер не может писать в папку проекта
 
     ports:
-      # Наружу сервис должен смотреть только через nginx (deploy/nginx-vectorplay.conf):
-      # порт публикуется исключительно на loopback хоста.
-      - "127.0.0.1:58765:58765"
-      # Нужен доступ из LAN без nginx? Замените строку выше на "58765:58765"
-      # и поставьте VECTOR_CALC_TRUST_PROXY: "0".
+      # Порт доступен в LAN напрямую (как и локальный start.sh).
+      # Прячем за nginx? Замените на "127.0.0.1:58765:58765" и включите
+      # VECTOR_CALC_TRUST_PROXY: "1" ниже — тогда снаружи будет только nginx.
+      - "58765:58765"
     #
     # Если демон не может выделить подсеть для этой сети
     # ("all predefined address pools have been fully subnetted"), см. README:
@@ -28,9 +27,10 @@ services:
     environment:
       VECTOR_CALC_HOST: 0.0.0.0
       VECTOR_CALC_PORT: "58765"
-      # nginx перезаписывает X-Forwarded-For своим $remote_addr (см. deploy/),
-      # поэтому приложение видит реальный IP клиента для rate limiting.
-      VECTOR_CALC_TRUST_PROXY: "1"
+      # "1" включать только когда порт приложения закрыт loopback-биндингом
+      # (127.0.0.1:58765:58765) и единственный вход — nginx, который
+      # перезаписывает X-Forwarded-For. Иначе IP в лимитере подделывается.
+      VECTOR_CALC_TRUST_PROXY: "0"
       # Лимиты можно подкрутить:
       # VECTOR_CALC_RATE_API: "600"        # запросов/мин на IP (GET API, страницы)
       # VECTOR_CALC_RATE_WRITE: "30"       # тяжёлые POST на IP
