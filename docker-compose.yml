@@ -1,0 +1,51 @@
+services:
+  vectorplay:
+    build:
+      context: .
+      args:
+        APP_UID: "${VECTORPLAY_UID:-1000}"
+        APP_GID: "${VECTORPLAY_GID:-1000}"
+    image: vectorplay:latest
+    container_name: vectorplay
+    restart: unless-stopped
+    init: true
+    # user: "0:0"   # запасной вариант, если контейнер не может писать в папку проекта
+
+    ports:
+      # Наружу сервис должен смотреть только через nginx (deploy/nginx-vectorplay.conf):
+      # прямой порт в интернет не публикуем.
+      - "127.0.0.1:58765:58765"
+      # Нужен доступ из LAN без nginx? Замените строку выше на "58765:58765"
+      # и поставьте VECTOR_CALC_TRUST_PROXY: "0".
+
+    environment:
+      VECTOR_CALC_HOST: 0.0.0.0
+      VECTOR_CALC_PORT: "58765"
+      # nginx перезаписывает X-Forwarded-For своим $remote_addr (см. deploy/),
+      # поэтому приложение видит реальный IP клиента для rate limiting.
+      VECTOR_CALC_TRUST_PROXY: "1"
+      # Лимиты можно подкрутить:
+      # VECTOR_CALC_RATE_API: "600"        # запросов/мин на IP (GET API, страницы)
+      # VECTOR_CALC_RATE_WRITE: "30"       # тяжёлые POST на IP
+      # VECTOR_CALC_MAX_CONCURRENT: "4"    # одновременных вычислений
+      # VECTOR_CALC_MAX_MEMORIES: "50000"  # предел записей в общей базе
+
+    volumes:
+      # Вся папка проекта: memories.sqlite3 и models/ живут на хосте и
+      # сохраняются при перезапусках, пересборках и обновлениях образа.
+      - ./:/app
+
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

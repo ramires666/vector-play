@@ -80,30 +80,73 @@ def available():
     return ARCHIVE.is_file() and zipfile.is_zipfile(ARCHIVE)
 
 
-def load():
+class ModelUnavailable(RuntimeError):
+    """The model archive is missing or could not be read."""
+
+
+class ModelNotReady(RuntimeError):
+    """The model is being loaded right now; retry shortly."""
+
+
+def _load_from_disk():
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        name = next((n for n in archive.namelist() if n.endswith("model.bin")), None)
+        if not name:
+            raise ValueError("В ZIP отсутствует model.bin")
+        with archive.open(name) as stream:
+            model = _read_binary(stream)
+    return model, pymorphy3.MorphAnalyzer()
+
+
+def _load_worker():
+    """Heavy part of the load; runs outside LOCK, updates the globals at the end."""
     global _MODEL, _MORPH, _ERROR, _LOADING
+    try:
+        model, morph = _load_from_disk()
+    except Exception as exc:
+        with LOCK:
+            _ERROR = f"{type(exc).__name__}: {exc}"
+            _LOADING = False
+        return
+    with LOCK:
+        _MODEL, _MORPH = model, morph
+        _LOADING = False
+
+
+def ensure_loaded_async():
+    """Start a single background load when the archive is present. Returns True if started."""
+    global _LOADING, _ERROR
+    with LOCK:
+        if _MODEL is not None or _LOADING or not available():
+            return False
+        _LOADING = True
+        _ERROR = None
+    threading.Thread(target=_load_worker, name="word2vec-loader", daemon=True).start()
+    return True
+
+
+def load():
+    """Return the loaded model, loading it synchronously when nobody else does.
+
+    Raises ModelNotReady while a background load is running and ModelUnavailable
+    when the archive is missing or broken, so callers can answer 503 instead of
+    hanging on the lock.
+    """
+    global _LOADING, _ERROR
     with LOCK:
         if _MODEL is not None:
             return _MODEL
+        if _LOADING:
+            raise ModelNotReady("Модель ещё загружается, попробуйте через несколько секунд")
         if not available():
-            raise ValueError("Модель Word2Vec не загружена. Запустите download_model.py")
+            raise ModelUnavailable("Модель Word2Vec не найдена на сервере. Запустите download_model.py")
         _LOADING = True
         _ERROR = None
-        try:
-            with zipfile.ZipFile(ARCHIVE) as archive:
-                name = next((n for n in archive.namelist() if n.endswith("model.bin")), None)
-                if not name:
-                    raise ValueError("В ZIP отсутствует model.bin")
-                with archive.open(name) as stream:
-                    model = _read_binary(stream)
-            morph = pymorphy3.MorphAnalyzer()
-            _MODEL, _MORPH = model, morph
-            return model
-        except Exception as exc:
-            _ERROR = f"{type(exc).__name__}: {exc}"
-            raise
-        finally:
-            _LOADING = False
+    _load_worker()
+    with LOCK:
+        if _MODEL is None:
+            raise ModelUnavailable(_ERROR or "Не удалось загрузить модель Word2Vec")
+        return _MODEL
 
 
 def state():

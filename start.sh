@@ -32,7 +32,7 @@ if [ ! -x "$VENV_PY" ]; then
     "$PYTHON" -m venv "$VENV"
 fi
 
-if ! "$VENV_PY" -c "import numpy, pymorphy3" >/dev/null 2>&1; then
+if ! "$VENV_PY" -c "import numpy, pymorphy3, fastapi, uvicorn" >/dev/null 2>&1; then
     echo "Installing dependencies from requirements.txt ..."
     "$VENV_PY" -m pip install --disable-pip-version-check -r requirements.txt
 fi
