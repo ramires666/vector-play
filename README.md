@@ -12,6 +12,8 @@
 
 ## Установка
 
+Windows:
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -19,9 +21,27 @@ python -m venv .venv
 .\.venv\Scripts\python.exe server.py
 ```
 
+Linux/macOS — достаточно одного скрипта, он создаст `.venv`, поставит зависимости, скачает модель при первом запуске и стартует сервер:
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+Вручную на Linux/macOS:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python download_model.py
+.venv/bin/python server.py
+```
+
 Откройте `http://localhost:58765/`. Для устройств LAN используйте `http://<IP_сервера>:58765/`.
 
 На Windows для входящих подключений должен быть разрешён TCP 58765. Рекомендуется ограничить правило своими LAN-подсетями. Сервер по умолчанию слушает `0.0.0.0:58765`, поэтому не пробрасывайте этот порт в интернет без HTTPS, авторизации и лимитов запросов.
+
+На Linux при необходимости откройте порт, например: `sudo ufw allow 58765/tcp`.
 
 Переменные окружения: `VECTOR_CALC_HOST`, `VECTOR_CALC_PORT`.
 
