@@ -11,15 +11,20 @@ services:
     init: true
     # user: "0:0"   # запасной вариант, если контейнер не может писать в папку проекта
 
-    ports:
-      # Наружу сервис должен смотреть только через nginx (deploy/nginx-vectorplay.conf):
-      # прямой порт в интернет не публикуем.
-      - "127.0.0.1:58765:58765"
-      # Нужен доступ из LAN без nginx? Замените строку выше на "58765:58765"
-      # и поставьте VECTOR_CALC_TRUST_PROXY: "0".
+    # Контейнер живёт в сетевом пространстве хоста: отдельная Docker-сеть
+    # не создаётся вообще (заодно лечит ошибку демона
+    # "all predefined address pools have been fully subnetted").
+    # Приложение слушает 127.0.0.1:58765, nginx на хосте проксирует на него.
+    network_mode: host
+    #
+    # Обычная bridge-сеть нужна только там, где host networking недоступен
+    # (Docker Desktop на Windows/macOS): закомментируйте network_mode, снимите
+    # комментарии с ports и верните VECTOR_CALC_HOST: 0.0.0.0.
+    # ports:
+    #   - "127.0.0.1:58765:58765"
 
     environment:
-      VECTOR_CALC_HOST: 0.0.0.0
+      VECTOR_CALC_HOST: 127.0.0.1
       VECTOR_CALC_PORT: "58765"
       # nginx перезаписывает X-Forwarded-For своим $remote_addr (см. deploy/),
       # поэтому приложение видит реальный IP клиента для rate limiting.
