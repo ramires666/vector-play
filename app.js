@@ -234,6 +234,7 @@ const VP = {
   model: null,
   models: [],
   defaultModel: "en-google",
+  defaultMode: "kids",
   _listeners: [],
   _langHost: null,
 
@@ -281,10 +282,11 @@ const VP = {
   },
 
   memoriesMode() {
-    // По умолчанию — детский режим: свежие мемориз и коллекция фильтруются сразу.
-    // Ручной выбор в шестерёнке сохраняется в браузере навсегда (localStorage).
+    // Показ по умолчанию задаёт сервер (VECTOR_CALC_DEFAULT_MODE);
+    // ручной выбор в шестерёнке сохраняется в браузере навсегда и перекрывает его.
     const value = localStorage.getItem("vp.memoriesMode");
-    return ["kids", "teen", "off"].includes(value) ? value : "kids";
+    if (["kids", "teen", "off"].includes(value)) return value;
+    return ["kids", "teen", "off"].includes(this.defaultMode) ? this.defaultMode : "kids";
   },
 
   setMemoriesMode(mode) {
@@ -353,6 +355,7 @@ const VP = {
     const data = await response.json();
     this.models = data.models || [];
     this.defaultModel = data.default || this.defaultModel;
+    if (["kids", "teen", "off"].includes(data.default_mode)) this.defaultMode = data.default_mode;
     return data;
   },
 

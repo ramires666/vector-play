@@ -31,6 +31,33 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+
+def _load_dotenv() -> None:
+    """Локальные настройки из .env рядом с server.py (ключ=значение, # — комментарий).
+
+    Уже заданные переменные окружения имеют приоритет: файл только дополняет.
+    Docker Compose и start-скрипты читают тот же .env.
+    """
+    path = Path(__file__).resolve().parent / ".env"
+    if not path.is_file():
+        return
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv()
+
 import memories_db as memories
 import moderation
 import word2vec_engine as engine
@@ -49,6 +76,11 @@ RATE_API = int(os.getenv("VECTOR_CALC_RATE_API", "600"))        # requests per m
 RATE_WRITE = int(os.getenv("VECTOR_CALC_RATE_WRITE", "30"))     # heavy POSTs per minute per IP
 HEAVY_POST_PATHS = {"/api/calculate", "/api/memories", "/api/moderate"}   # они идут через WRITE_LIMITER
 ADMIN_TOKEN = os.getenv("VECTOR_CALC_ADMIN_TOKEN", "").strip()
+# Режим показа коллекции по умолчанию (шестерёнка на /memories): kids | teen | off.
+# Ручной выбор в браузере сохраняется навсегда и перекрывает это значение.
+DEFAULT_MODE = os.getenv("VECTOR_CALC_DEFAULT_MODE", "kids").strip().lower()
+if DEFAULT_MODE not in {"kids", "teen", "off"}:
+    DEFAULT_MODE = "kids"
 # Режимы показа коллекции (шестерёнка на /memories) → какие группы допуска видеть.
 # Запись без оценки считается безопасной (kids) и видна во всех режимах.
 MODE_GROUPS: dict[str, tuple] = {
@@ -355,7 +387,8 @@ def app_script() -> FileResponse:
 
 @app.get("/api/models")
 def models() -> dict[str, Any]:
-    return {"default": engine.MANAGER.default_id, "cache_budget_mb": engine.MANAGER.budget_mb(),
+    return {"default": engine.MANAGER.default_id, "default_mode": DEFAULT_MODE,
+            "cache_budget_mb": engine.MANAGER.budget_mb(),
             "resident": engine.MANAGER.resident_ids(), "models": engine.MANAGER.states()}
 
 

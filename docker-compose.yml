@@ -34,20 +34,27 @@ services:
       # en-glove (1.6 ГБ) остаются в коде: включить — дописать их сюда и
       # скачать: python download_model.py en-google en-glove
       # Любое значение можно переопределить файлом .env рядом с этим compose
-      # (он в .gitignore, так что локальные настройки не конфликтуют с git pull).
+      # (шаблон — .env.example; .env в .gitignore, конфликтов с git pull нет):
+      # там же эндпоинт и ключ LLM, токен админа и режим показа по умолчанию.
       VECTOR_CALC_ENABLED_MODELS: "${VECTOR_CALC_ENABLED_MODELS:-en-small,ru-rusvectores}"
       VECTOR_CALC_DEFAULT_MODEL: "${VECTOR_CALC_DEFAULT_MODEL:-en-small}"
 
       # Модерация коллекции: словари + векторные эвристики + LLM.
       # off — выключено, warn — только логировать вердикты, queue — спорное в очередь,
       # strict — публикация только после ручного одобрения.
-      VECTOR_CALC_MODERATION: "queue"
+      VECTOR_CALC_MODERATION: "${VECTOR_CALC_MODERATION:-queue}"
       # Профиль аудитории: teen — мягче (до 18), kids — строже (от 7 лет).
-      VECTOR_CALC_MODERATION_PROFILE: "teen"
-      VECTOR_CALC_LLM_URL: "http://192.168.1.102:8080/v1"
-      VECTOR_CALC_LLM_MODEL: "local"
+      VECTOR_CALC_MODERATION_PROFILE: "${VECTOR_CALC_MODERATION_PROFILE:-teen}"
+      # Режим показа коллекции по умолчанию: kids | teen | off (ручной выбор
+      # в шестерёнке сохраняется в браузере и перекрывает это значение).
+      VECTOR_CALC_DEFAULT_MODE: "${VECTOR_CALC_DEFAULT_MODE:-kids}"
+      # LLM для модерации (OpenAI-совместимый адрес; пусто — только словари и вектора).
+      VECTOR_CALC_LLM_URL: "${VECTOR_CALC_LLM_URL:-}"
+      VECTOR_CALC_LLM_MODEL: "${VECTOR_CALC_LLM_MODEL:-local}"
+      # Пароль/ключ LLM, если он требуется.
+      VECTOR_CALC_LLM_API_KEY: "${VECTOR_CALC_LLM_API_KEY:-}"
       # Без «размышлений» модель отвечает ~1 c вместо 5-10 c.
-      VECTOR_CALC_LLM_NO_THINK: "1"
+      VECTOR_CALC_LLM_NO_THINK: "${VECTOR_CALC_LLM_NO_THINK:-1}"
       # VECTOR_CALC_LLM_TIMEOUT: "60"
       # Токен для очереди модерации: GET /api/moderation/queue, POST /api/moderation/{id}
       VECTOR_CALC_ADMIN_TOKEN: "${VECTOR_CALC_ADMIN_TOKEN:-xxx111xxx333}"

@@ -10,6 +10,15 @@ set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
+# Локальные настройки из .env (файл в .gitignore; шаблон — .env.example):
+# эндпоинт/ключ LLM, токен админа, режим показа по умолчанию и т.д.
+if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . ./.env
+    set +a
+fi
+
 PYTHON="${PYTHON:-python3}"
 VENV="${VENV:-.venv}"
 VENV_PY="$VENV/bin/python"
@@ -25,6 +34,7 @@ export VECTOR_CALC_DEFAULT_MODEL="${VECTOR_CALC_DEFAULT_MODEL:-en-small}"
 # Модерация коллекции: словари + векторные эвристики + LLM (OpenAI-совместимый адрес).
 export VECTOR_CALC_MODERATION="${VECTOR_CALC_MODERATION:-queue}"
 export VECTOR_CALC_MODERATION_PROFILE="${VECTOR_CALC_MODERATION_PROFILE:-teen}"   # kids — строже (7+)
+export VECTOR_CALC_DEFAULT_MODE="${VECTOR_CALC_DEFAULT_MODE:-kids}"              # kids | teen | off
 export VECTOR_CALC_LLM_URL="${VECTOR_CALC_LLM_URL:-http://192.168.1.102:8080/v1}"
 export VECTOR_CALC_LLM_MODEL="${VECTOR_CALC_LLM_MODEL:-local}"
 export VECTOR_CALC_LLM_NO_THINK="${VECTOR_CALC_LLM_NO_THINK:-1}"                  # ~1 c вместо 5-10 c

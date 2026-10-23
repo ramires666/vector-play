@@ -96,6 +96,8 @@ Open <http://localhost:58765/>. On the first request the default model is loaded
 
 `start.sh` / `start.bat` pre-set the recommended configuration: the two compact models enabled, `en-small` as default, moderation in `queue` mode with the `teen` profile, the LLM endpoint of the author's LAN (override it), and the admin token. Bare `python server.py` without those variables exposes the whole model registry and moderation in `warn` mode.
 
+Optional: copy `.env.example` to `.env` and adjust the deployment-specific values there (LLM endpoint and key, admin token, moderation profile, default gallery mode). Docker Compose, `start.sh` / `start.bat` and `server.py` itself all read this file automatically (explicit environment variables always win over it); `.env` is git-ignored, so `git pull` never touches it.
+
 ---
 
 ## Models
@@ -169,7 +171,7 @@ Deployment notes:
 - The port is published directly (`58765:58765`). To put the app behind nginx, bind `127.0.0.1:58765:58765` and set `VECTOR_CALC_TRUST_PROXY=1` so the rate limiter sees real client IPs from `X-Forwarded-For`. Without a proxy in front, keep it `0` — otherwise clients can spoof their IP.
 - On Linux, build with matching ids when the project folder belongs to another user: `VECTORPLAY_UID=$(id -u) VECTORPLAY_GID=$(id -g) docker compose up -d --build`. The last resort is uncommenting `user: "0:0"` in `docker-compose.yml`.
 - If Docker cannot allocate a subnet ("all predefined address pools have been fully subnetted"), run `docker network prune -f` or extend `default-address-pools` in `daemon.json`. As an alternative, `network_mode: host` with `VECTOR_CALC_HOST: 127.0.0.1` works without a Docker network at all.
-- Any compose value can be overridden by a `.env` file next to `docker-compose.yml` (it is git-ignored, so local settings never conflict with `git pull`).
+- Any compose value can be overridden by a `.env` file next to `docker-compose.yml` (it is git-ignored, so local settings never conflict with `git pull`). Copy the template: `cp .env.example .env`, then set the LLM endpoint and key, the admin token, the moderation profile and the default gallery mode there. `start.sh` / `start.bat` read the same `.env` for local runs.
 - Container hardening: unprivileged user, `read_only: true`, `tmpfs: /tmp`, `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit: 256`, log rotation `10m × 3`.
 
 ---
@@ -216,6 +218,7 @@ Everything is configured through environment variables. Values in **bold** are t
 |---|---|---|
 | `VECTOR_CALC_MODERATION` | `warn` *(Compose: `queue`)* | `off` — no checks, everything approved; `warn` — check and log, still approve; `queue` — anything not `ok` goes to the admin queue; `strict` — everything goes to the queue |
 | `VECTOR_CALC_MODERATION_PROFILE` | `teen` | Audience profile: `kids` (stricter, 7+) or `teen` (softer, under 18) |
+| `VECTOR_CALC_DEFAULT_MODE` | `kids` | Default gallery display mode served to the UI (`kids` / `teen` / `off`); a manual choice in the gear is stored in the browser and overrides it |
 | `VECTOR_CALC_MODERATION_NEIGHBORS` | `10` | How many nearest words of the answer to check against the dictionaries |
 | `VECTOR_CALC_MODERATION_MIN_HITS` | profile default (`2` kids / `4` teen) | Dictionary hits needed to trigger a vector-based flag |
 | `VECTOR_CALC_LLM_URL` | *(empty = LLM disabled)* | OpenAI-compatible base URL, e.g. `http://192.168.1.102:8080/v1` |
@@ -236,7 +239,7 @@ Base URL: `http://<host>:58765`. All responses are JSON; errors have the shape `
 |---|---|---|---|
 | `GET` | `/` | — | Calculator page |
 | `GET` | `/memories` | — | Gallery page |
-| `GET` | `/api/models` | — | Enabled models with state, sizes and the cache budget |
+| `GET` | `/api/models` | — | Enabled models with state, sizes, the cache budget and `default_mode` |
 | `GET` | `/api/status` | — | Same, plus which model is currently loaded |
 | `POST` | `/api/models/{id}/load` | — | Start a background load of a model (`{"started": true/false, "state": {...}}`) |
 | `GET` | `/api/health` | — | Liveness probe (default model, resident models, resident MB) |
