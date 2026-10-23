@@ -18,9 +18,9 @@ ARCHIVE="models/ruwikiruscorpora_upos_skipgram_300_2_2019.zip"
 # Пока включена только русская модель: английские остаются в коде (MODELS в
 # word2vec_engine.py), но не грузятся и не показываются в меню. Чтобы вернуть —
 # задайте свой список, например: VECTOR_CALC_ENABLED_MODELS=en-google,en-glove,ru-rusvectores
-# Модели: en-small — обрезанная до топ-250k Google News (по памяти как русская),
-# en-google/en-glove — полные (скачиваются отдельно), ru-rusvectores — русская.
-export VECTOR_CALC_ENABLED_MODELS="${VECTOR_CALC_ENABLED_MODELS:-en-small,en-google,en-glove,ru-rusvectores}"
+# Модели: по умолчанию только две самые лёгкие — en-small (обрезанная Google News)
+# и русская. Тяжёлые en-google/en-glove остаются в коде, включаются этой же переменной.
+export VECTOR_CALC_ENABLED_MODELS="${VECTOR_CALC_ENABLED_MODELS:-en-small,ru-rusvectores}"
 export VECTOR_CALC_DEFAULT_MODEL="${VECTOR_CALC_DEFAULT_MODEL:-en-small}"
 
 # Модерация коллекции: словари + векторные эвристики + LLM (OpenAI-совместимый адрес).

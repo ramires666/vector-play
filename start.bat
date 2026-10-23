@@ -1,6 +1,6 @@
 @echo off
 cd /d "%~dp0"
-if not defined VECTOR_CALC_ENABLED_MODELS set VECTOR_CALC_ENABLED_MODELS=en-small,en-google,en-glove,ru-rusvectores
+if not defined VECTOR_CALC_ENABLED_MODELS set VECTOR_CALC_ENABLED_MODELS=en-small,ru-rusvectores
 if not defined VECTOR_CALC_DEFAULT_MODEL set VECTOR_CALC_DEFAULT_MODEL=en-small
 if not defined VECTOR_CALC_MODERATION set VECTOR_CALC_MODERATION=queue
 if not defined VECTOR_CALC_MODERATION_PROFILE set VECTOR_CALC_MODERATION_PROFILE=teen

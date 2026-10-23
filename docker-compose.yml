@@ -27,9 +27,10 @@ services:
     environment:
       VECTOR_CALC_HOST: 0.0.0.0
       VECTOR_CALC_PORT: "58765"
-      # Включены все модели. Английские: en-small — обрезанная до топ-250k Google News
-      # (столько же в памяти, сколько русская), en-google и en-glove — полные (нужно скачать).
-      VECTOR_CALC_ENABLED_MODELS: "en-small,en-google,en-glove,ru-rusvectores"
+      # В меню — только две самые лёгкие модели (en-small ~316 МБ, русская ~314 МБ).
+      # Тяжёлые en-google (3.8 ГБ) и en-glove (1.6 ГБ) остаются в коде: включить —
+      # дописать их сюда и скачать: python download_model.py en-google en-glove
+      VECTOR_CALC_ENABLED_MODELS: "en-small,ru-rusvectores"
       VECTOR_CALC_DEFAULT_MODEL: "en-small"
 
       # Модерация коллекции: словари + векторные эвристики + LLM.
