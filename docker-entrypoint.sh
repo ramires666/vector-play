@@ -22,9 +22,15 @@ for path in "$APP_DIR" "$APP_DIR/models" "$APP_DIR/memories.sqlite3"; do
     fi
 done
 
-# Скачиваем модель по умолчанию (VECTOR_CALC_DEFAULT_MODEL), если её ещё нет.
-# Остальные модели: docker compose exec vectorplay python download_model.py --all
-echo "Ensuring the default model is present (VECTOR_CALC_DEFAULT_MODEL / VECTOR_CALC_ENABLED_MODELS) ..."
-python download_model.py
+# Модель по умолчанию (VECTOR_CALC_DEFAULT_MODEL) качаем В ФОНЕ, чтобы сервер
+# поднимался сразу: в интерфейсе будет «Модель скачивается…», а модель
+# подхватится, как только файл появится. Остальные модели:
+#   docker compose exec vectorplay python download_model.py --all
+DEFAULT_ARCHIVE="$(python -c 'import word2vec_engine as e; print(e.MODELS_BY_ID[e.MANAGER.default_id].path)' 2>/dev/null || true)"
+if [ -n "$DEFAULT_ARCHIVE" ] && [ ! -f "$DEFAULT_ARCHIVE" ]; then
+    echo "Модель по умолчанию не найдена, качаю в фоне: $(basename "$DEFAULT_ARCHIVE")"
+    echo "Прогресс и результат видны в docker compose logs -f; сервер уже поднимается."
+    python download_model.py &
+fi
 
 exec python server.py

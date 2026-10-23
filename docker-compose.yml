@@ -30,8 +30,10 @@ services:
       # В меню — только две самые лёгкие модели (en-small ~316 МБ, русская ~314 МБ).
       # Тяжёлые en-google (3.8 ГБ) и en-glove (1.6 ГБ) остаются в коде: включить —
       # дописать их сюда и скачать: python download_model.py en-google en-glove
-      VECTOR_CALC_ENABLED_MODELS: "en-small,ru-rusvectores"
-      VECTOR_CALC_DEFAULT_MODEL: "en-small"
+      # Любое значение можно переопределить файлом .env рядом с этим compose
+      # (он в .gitignore, так что локальные настройки не конфликтуют с git pull).
+      VECTOR_CALC_ENABLED_MODELS: "${VECTOR_CALC_ENABLED_MODELS:-en-small,ru-rusvectores}"
+      VECTOR_CALC_DEFAULT_MODEL: "${VECTOR_CALC_DEFAULT_MODEL:-en-small}"
 
       # Модерация коллекции: словари + векторные эвристики + LLM.
       # off — выключено, warn — только логировать вердикты, queue — спорное в очередь,
@@ -45,7 +47,7 @@ services:
       VECTOR_CALC_LLM_NO_THINK: "1"
       # VECTOR_CALC_LLM_TIMEOUT: "60"
       # Токен для очереди модерации: GET /api/moderation/queue, POST /api/moderation/{id}
-      VECTOR_CALC_ADMIN_TOKEN: "xxx111xxx333"
+      VECTOR_CALC_ADMIN_TOKEN: "${VECTOR_CALC_ADMIN_TOKEN:-xxx111xxx333}"
       # "1" включать только когда порт приложения закрыт loopback-биндингом
       # (127.0.0.1:58765:58765) и единственный вход — nginx, который
       # перезаписывает X-Forwarded-For. Иначе IP в лимитере подделывается.
