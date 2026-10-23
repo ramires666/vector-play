@@ -1,11 +1,10 @@
 #!/bin/sh
 # VectorPlay entrypoint. The project folder is mounted at /app, so the SQLite
-# database and the Word2Vec model live on the host. Fail early with a readable
+# database and the model files live on the host. Fail early with a readable
 # message when the container user cannot write there.
 set -eu
 
 APP_DIR=/app
-MODEL_ARCHIVE="$APP_DIR/models/ruwikiruscorpora_upos_skipgram_300_2_2019.zip"
 
 if ! mkdir -p "$APP_DIR/models" 2>/dev/null; then
     echo "error: cannot create $APP_DIR/models inside the container." >&2
@@ -23,9 +22,9 @@ for path in "$APP_DIR" "$APP_DIR/models" "$APP_DIR/memories.sqlite3"; do
     fi
 done
 
-if [ ! -f "$MODEL_ARCHIVE" ]; then
-    echo "Word2Vec model not found; downloading it now (resumable, may take a while) ..."
-    python download_model.py
-fi
+# Скачиваем модель по умолчанию (VECTOR_CALC_DEFAULT_MODEL), если её ещё нет.
+# Остальные модели: docker compose exec vectorplay python download_model.py --all
+echo "Ensuring the default model is present (VECTOR_CALC_DEFAULT_MODEL / VECTOR_CALC_ENABLED_MODELS) ..."
+python download_model.py
 
 exec python server.py

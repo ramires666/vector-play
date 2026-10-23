@@ -22,7 +22,7 @@ COPY requirements.txt ./
 RUN pip install --disable-pip-version-check -r requirements.txt
 
 COPY --chown=vectorplay:vectorplay server.py memories_db.py word2vec_engine.py download_model.py ./
-COPY --chown=vectorplay:vectorplay index.html memories.html ./
+COPY --chown=vectorplay:vectorplay index.html memories.html app.js ./
 COPY --chown=vectorplay:vectorplay docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh \
  && mkdir -p /app/models \

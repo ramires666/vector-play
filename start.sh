@@ -15,6 +15,12 @@ VENV="${VENV:-.venv}"
 VENV_PY="$VENV/bin/python"
 ARCHIVE="models/ruwikiruscorpora_upos_skipgram_300_2_2019.zip"
 
+# Пока включена только русская модель: английские остаются в коде (MODELS в
+# word2vec_engine.py), но не грузятся и не показываются в меню. Чтобы вернуть —
+# задайте свой список, например: VECTOR_CALC_ENABLED_MODELS=en-google,en-glove,ru-rusvectores
+export VECTOR_CALC_ENABLED_MODELS="${VECTOR_CALC_ENABLED_MODELS:-ru-rusvectores}"
+export VECTOR_CALC_DEFAULT_MODEL="${VECTOR_CALC_DEFAULT_MODEL:-ru-rusvectores}"
+
 if ! command -v "$PYTHON" >/dev/null 2>&1; then
     echo "error: $PYTHON not found; install Python 3.10+ or set PYTHON=/path/to/python3" >&2
     exit 1
