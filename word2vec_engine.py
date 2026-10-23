@@ -30,7 +30,7 @@ import pymorphy3
 
 ROOT = Path(__file__).resolve().parent
 MODELS_DIR = ROOT / "models"
-DEFAULT_MODEL = os.getenv("VECTOR_CALC_DEFAULT_MODEL", "en-google").strip() or "en-google"
+DEFAULT_MODEL = os.getenv("VECTOR_CALC_DEFAULT_MODEL", "en-small").strip() or "en-small"
 
 logger = logging.getLogger("vectorplay.engine")
 
@@ -86,14 +86,11 @@ class ModelSpec:
 MODELS: tuple[ModelSpec, ...] = (
     ModelSpec(
         id="en-small", flag="🇬🇧", label="English Small", language="en",
-        name="Google News Word2Vec 300D · top-250k",
-        detail="250k tokens · 300D · Google News, обрезанная до частотного топа",
-        archive="GoogleNews-vectors-negative300.bin.gz",
-        urls=(
-            "https://github.com/RaRe-Technologies/gensim-data/releases/download/word2vec-google-news-300/word2vec-google-news-300.gz",
-            "https://huggingface.co/LoganKilpatrick/GoogleNews-vectors-negative300/resolve/main/GoogleNews-vectors-negative300.bin.gz",
-        ),
-        size_mb=1650, ram_mb=420, max_words=250_000,
+        name="GloVe Wiki+Gigaword 100D",
+        detail="400k tokens · 100D · лёгкая английская модель",
+        archive="glove-wiki-gigaword-100.gz",
+        urls=("https://github.com/RaRe-Technologies/gensim-data/releases/download/glove-wiki-gigaword-100/glove-wiki-gigaword-100.gz",),
+        size_mb=130, ram_mb=230,
     ),
     ModelSpec(
         id="en-google", flag="🇬🇧", label="English Classic", language="en",
@@ -297,10 +294,16 @@ def _read_glove_text(stream, spec: ModelSpec) -> WordSpace:
     words = []
     dims = None
     skipped = 0
+    header_checked = False
     for raw_line in stream:
         line = raw_line.decode("utf-8", errors="replace").strip()
         if not line:
             continue
+        if not header_checked and not words:
+            header_checked = True
+            parts = line.split()
+            if len(parts) == 2 and all(part.isdigit() for part in parts):
+                continue                     # заголовок word2vec-текста «N D»
         separator = line.find(" ")
         if separator <= 0:
             skipped += 1
@@ -325,6 +328,31 @@ def _read_glove_text(stream, spec: ModelSpec) -> WordSpace:
     return WordSpace(words, matrix, spec)
 
 
+def _gz_kind(path: Path) -> str:
+    """Что внутри .gz: word2vec binary или текстовые векторы (GloVe / w2v-text)."""
+    try:
+        with gzip.open(path, "rb") as stream:
+            head = stream.read(8192)
+    except OSError:
+        return "binary"
+    first, _, rest = head.partition(b"\n")
+    parts = first.strip().split()
+
+    def looks_text(tokens) -> bool:
+        if len(tokens) < 3:
+            return False
+        try:
+            float(tokens[1])
+            float(tokens[-1])
+            return True
+        except ValueError:
+            return False
+
+    if len(parts) == 2 and all(part.isdigit() for part in parts):
+        return "text" if looks_text(rest.split(b"\n", 1)[0].split()) else "binary"
+    return "text" if looks_text(parts) else "binary"
+
+
 def _load_model(spec: ModelSpec) -> WordSpace:
     path = spec.path
     if not spec.available():
@@ -338,13 +366,15 @@ def _load_model(spec: ModelSpec) -> WordSpace:
             text = next((n for n in names if n.lower().endswith((".txt", ".vec"))), None)
             if binary:
                 stream = stack.enter_context(archive.open(binary))
-                return _read_word2vec_binary(stream, spec)
+                return _read_word2vec_binary(stream, spec, spec.max_words)
             if text:
                 stream = stack.enter_context(archive.open(text))
                 return _read_glove_text(stream, spec)
             raise ValueError(f"В архиве {path.name} нет model.bin или текстовых векторов")
         if suffix == ".gz":
             stream = stack.enter_context(gzip.open(path, "rb"))
+            if _gz_kind(path) == "text":
+                return _read_glove_text(stream, spec)
             return _read_word2vec_binary(stream, spec, spec.max_words)
         stream = stack.enter_context(path.open("rb"))
         return _read_word2vec_binary(stream, spec, spec.max_words)

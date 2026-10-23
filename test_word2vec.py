@@ -73,6 +73,34 @@ class ReaderTests(unittest.TestCase):
         self.assertEqual(model.vector_size, 3)
         self.assertNotIn("broken", model)
 
+    def test_word2vec_text_header_is_skipped(self):
+        # gensim-формат: «N D» первой строкой, дальше текстовые векторы
+        text = b"2 3\nthe 1 1 0\ncat 0 1 1\n"
+        model = engine._read_glove_text(io.BytesIO(text), EN_SPEC)
+        self.assertEqual(len(model), 2)
+        self.assertEqual(model.vector_size, 3)
+        self.assertIn("the", model)
+        self.assertNotIn("2", model)
+
+    def test_gz_kind_and_load_model_dispatch(self):
+        with tempfile.TemporaryDirectory(prefix="vectorplay-gz-") as tmp:
+            directory = Path(tmp)
+            text_path = directory / "text.gz"
+            text_path.write_bytes(gzip.compress(b"2 3\nthe 1 1 0\ncat 0 1 1\n"))
+            binary_path = directory / "binary.gz"
+            binary_path.write_bytes(gzip.compress(BINARY_PAYLOAD))
+            self.assertEqual(engine._gz_kind(text_path), "text")
+            self.assertEqual(engine._gz_kind(binary_path), "binary")
+
+            original_dir = engine.MODELS_DIR
+            self.addCleanup(setattr, engine, "MODELS_DIR", original_dir)
+            engine.MODELS_DIR = directory
+            for archive, expected_word in (("text.gz", "the"), ("binary.gz", "король_NOUN")):
+                spec = engine.ModelSpec(id="gz", flag="🇬🇧", label="G", language="en",
+                                        name="G", detail="", archive=archive, urls=(), size_mb=0)
+                model = engine._load_model(spec)
+                self.assertIn(expected_word, model, archive)
+
     def test_similarities_match_normalized_dot(self):
         # (vectors @ target) / norms must equal normed_matrix @ target
         model = engine._read_word2vec_binary(io.BytesIO(BINARY_PAYLOAD), EN_SPEC)
@@ -118,12 +146,13 @@ class RegistryTests(unittest.TestCase):
         ids = {spec.id for spec in engine.MODELS}
         self.assertEqual(ids, {"en-small", "en-google", "en-glove", "ru-rusvectores"})
 
-    def test_pruned_google_news_shares_archive(self):
+    def test_english_small_is_a_little_standalone_download(self):
         small = engine.MODELS_BY_ID["en-small"]
         full = engine.MODELS_BY_ID["en-google"]
-        self.assertEqual(small.archive, full.archive)      # один файл на диске
-        self.assertEqual(small.max_words, 250_000)         # обрезаем до топ-250k
-        self.assertEqual(full.max_words, 0)                # полная — без обрезки
+        self.assertEqual(small.archive, "glove-wiki-gigaword-100.gz")
+        self.assertNotEqual(small.archive, full.archive)   # никакой 1.6 ГБ загрузки
+        self.assertLessEqual(small.size_mb, 200)           # микромодель
+        self.assertEqual(small.max_words, 0)               # обрезка не нужна
         self.assertLess(small.planned_ram_mb, full.planned_ram_mb)
 
     def test_enabled_specs_default_is_full_registry(self):

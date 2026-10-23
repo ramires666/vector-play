@@ -27,9 +27,11 @@ services:
     environment:
       VECTOR_CALC_HOST: 0.0.0.0
       VECTOR_CALC_PORT: "58765"
-      # В меню — только две самые лёгкие модели (en-small ~316 МБ, русская ~314 МБ).
-      # Тяжёлые en-google (3.8 ГБ) и en-glove (1.6 ГБ) остаются в коде: включить —
-      # дописать их сюда и скачать: python download_model.py en-google en-glove
+      # В меню — только две самые лёгкие модели: en-small (загрузка 128 МБ,
+      # в памяти ~0.2 ГБ) и русская (0.6 ГБ / ~0.3 ГБ). Никаких гигабайтных
+      # файлов по умолчанию не качается. Тяжёлые en-google (3.8 ГБ) и
+      # en-glove (1.6 ГБ) остаются в коде: включить — дописать их сюда и
+      # скачать: python download_model.py en-google en-glove
       # Любое значение можно переопределить файлом .env рядом с этим compose
       # (он в .gitignore, так что локальные настройки не конфликтуют с git pull).
       VECTOR_CALC_ENABLED_MODELS: "${VECTOR_CALC_ENABLED_MODELS:-en-small,ru-rusvectores}"
