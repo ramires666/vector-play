@@ -8,6 +8,10 @@
 .examples-toggle.active{background:#303c60;color:#f4f6ff;border-color:#6975ad}
 .live-panel .live{padding-top:4px}
 @media(max-width:560px){.examples-toggle{padding:0 12px}.examples-toggle span{display:none}}
+.title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.title-row h1{margin:0 0 10px}
+@media(max-width:380px){.title-row{gap:8px}.title-row h1{font-size:24px;letter-spacing:-.7px}}
+@media(max-width:560px){.title-row h1{margin-bottom:4px}}
 .top-controls{display:flex;flex-direction:column;align-items:flex-end;gap:7px;min-width:0}
 .segmented{display:flex;gap:4px;background:#0f1727;border:1px solid #3c4866;border-radius:13px;padding:3px}
 .lang-button{min-height:38px;padding:0 12px;border-radius:10px;border:0;background:transparent;color:#a9b4ce;font-weight:700;font-size:13px;cursor:pointer}
@@ -15,8 +19,9 @@
 .model-select{max-width:300px;min-height:42px;border-radius:12px;border:1px solid #3c4866;background:#0f1727;color:#f4f6ff;padding:0 10px;font-size:13px;max-width:min(300px,60vw)}
 @media(max-width:560px){header{flex-wrap:wrap}.top-controls{align-items:flex-start;width:100%}.model-select{max-width:100%;width:100%}}
 [hidden]{display:none!important}</style></head><body><main class="app">
-<header><div class="brand"><span class="logo">∑</span> VECTORPLAY</div><div class="top-controls"><div class="controls-row"><button id="examplesToggle" class="examples-toggle active" type="button" aria-pressed="true">💡 <span data-i18n="examplesButton">Examples</span></button><div class="segmented" id="langSwitch" role="group" aria-label="Language"></div></div><select id="modelSelect" class="model-select" aria-label="Model"></select><div id="status" class="status" data-i18n="checkingModel">Checking model</div></div></header>
-<h1 data-i18n="headline">Words as vectors.</h1><p class="intro" data-i18n="intro">Add and subtract words. See which concept comes closest to the result.</p>
+<header><div class="brand"><span class="logo">∑</span> VECTORPLAY</div><div class="top-controls"><div class="segmented" id="langSwitch" role="group" aria-label="Language"></div><select id="modelSelect" class="model-select" aria-label="Model"></select><div id="status" class="status" data-i18n="checkingModel">Checking model</div></div></header>
+<div class="title-row"><h1 data-i18n="headline">Words as vectors.</h1><button id="examplesToggle" class="examples-toggle active" type="button" aria-pressed="true">💡 <span data-i18n="examplesButton">Examples</span></button></div>
+<p class="intro" data-i18n="intro">Add and subtract words. See which concept comes closest to the result.</p>
 <section class="panel live-panel"><div class="memory-head"><h2 style="margin:0;font-size:18px" data-i18n="freshMemories">🔥 Fresh memories</h2><a href="/memories" data-i18n="allLink">All →</a></div><div class="live" id="liveMemories"><span class="hint" data-i18n="loadingCollection">Loading the shared collection…</span></div></section>
 <section class="panel"><div class="heading"><h2 data-i18n="expression">Your expression</h2><span class="badge" id="modelBadge">Word2Vec · 300D</span></div>
 <div id="terms"></div><button id="add" class="add" type="button" data-i18n="addWord">＋ Add word</button>
