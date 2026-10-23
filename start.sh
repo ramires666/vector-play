@@ -21,6 +21,12 @@ ARCHIVE="models/ruwikiruscorpora_upos_skipgram_300_2_2019.zip"
 export VECTOR_CALC_ENABLED_MODELS="${VECTOR_CALC_ENABLED_MODELS:-ru-rusvectores}"
 export VECTOR_CALC_DEFAULT_MODEL="${VECTOR_CALC_DEFAULT_MODEL:-ru-rusvectores}"
 
+# Модерация коллекции: словари + векторные эвристики + LLM (OpenAI-совместимый адрес).
+export VECTOR_CALC_MODERATION="${VECTOR_CALC_MODERATION:-queue}"
+export VECTOR_CALC_LLM_URL="${VECTOR_CALC_LLM_URL:-http://192.168.1.102:8080/v1}"
+export VECTOR_CALC_LLM_MODEL="${VECTOR_CALC_LLM_MODEL:-local}"
+export VECTOR_CALC_ADMIN_TOKEN="${VECTOR_CALC_ADMIN_TOKEN:-local-admin}"
+
 if ! command -v "$PYTHON" >/dev/null 2>&1; then
     echo "error: $PYTHON not found; install Python 3.10+ or set PYTHON=/path/to/python3" >&2
     exit 1
