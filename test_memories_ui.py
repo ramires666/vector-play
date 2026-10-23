@@ -18,6 +18,13 @@ with sync_playwright() as p:
     mobile.locator("#liveMemories .live-item").first.wait_for(timeout=12000)
     assert mobile.locator("#liveMemories .live-item").count()>=1
     expect(gallery.locator("#items")).to_contain_text("королева",timeout=12000)
+    # карточка: без подписи «подставить в калькулятор», группа допуска — в строке выражения
+    cards=gallery.locator("#items .card").count()
+    assert cards>=1,cards
+    assert gallery.locator(".use-hint").count()==0
+    assert gallery.locator(".card-head .expression").count()==cards
+    assert gallery.locator(".card-head .group-select").count()==cards
+    assert gallery.evaluate("document.documentElement.scrollWidth<=innerWidth")
     # «Примеры и мемориз» — один блок: пока калькулятором не пользовались,
     # сверху готовые примеры, ниже свежие из коллекции
     expect(mobile.locator("#exampleBlock")).to_be_visible(timeout=5000)
