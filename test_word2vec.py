@@ -114,9 +114,17 @@ class CalculateTests(unittest.TestCase):
 
 
 class RegistryTests(unittest.TestCase):
-    def test_registry_has_three_models(self):
+    def test_registry_has_four_models(self):
         ids = {spec.id for spec in engine.MODELS}
-        self.assertEqual(ids, {"en-google", "en-glove", "ru-rusvectores"})
+        self.assertEqual(ids, {"en-small", "en-google", "en-glove", "ru-rusvectores"})
+
+    def test_pruned_google_news_shares_archive(self):
+        small = engine.MODELS_BY_ID["en-small"]
+        full = engine.MODELS_BY_ID["en-google"]
+        self.assertEqual(small.archive, full.archive)      # один файл на диске
+        self.assertEqual(small.max_words, 250_000)         # обрезаем до топ-250k
+        self.assertEqual(full.max_words, 0)                # полная — без обрезки
+        self.assertLess(small.planned_ram_mb, full.planned_ram_mb)
 
     def test_enabled_specs_default_is_full_registry(self):
         self.assertEqual(engine.enabled_specs(""), engine.MODELS)
@@ -135,7 +143,7 @@ class RegistryTests(unittest.TestCase):
             engine.enabled_specs("совсем-не-модель")
 
     def test_default_model_is_english(self):
-        self.assertEqual(engine.DEFAULT_MODEL, "en-google")
+        self.assertIn(engine.DEFAULT_MODEL, ("en-google", "en-small"))
 
     def test_manager_reports_state_for_missing_model(self):
         state = engine.MANAGER.state("en-google")

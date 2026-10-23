@@ -27,11 +27,10 @@ services:
     environment:
       VECTOR_CALC_HOST: 0.0.0.0
       VECTOR_CALC_PORT: "58765"
-      # Пока включена только русская модель: английские остаются в коде
-      # (MODELS в word2vec_engine.py), но не грузятся и не показываются в меню.
-      # Раскомментируйте/допишите через запятую, чтобы вернуть: "en-google,en-glove"
-      VECTOR_CALC_ENABLED_MODELS: "ru-rusvectores"
-      VECTOR_CALC_DEFAULT_MODEL: "ru-rusvectores"
+      # Включены все модели. Английские: en-small — обрезанная до топ-250k Google News
+      # (столько же в памяти, сколько русская), en-google и en-glove — полные (нужно скачать).
+      VECTOR_CALC_ENABLED_MODELS: "en-small,en-google,en-glove,ru-rusvectores"
+      VECTOR_CALC_DEFAULT_MODEL: "en-small"
 
       # Модерация коллекции: словари + векторные эвристики + LLM.
       # off — выключено, warn — только логировать вердикты, queue — спорное в очередь,

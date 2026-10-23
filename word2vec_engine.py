@@ -52,6 +52,7 @@ class ModelSpec:
     urls: tuple[str, ...]
     size_mb: int
     ram_mb: int = 0          # ожидаемый резидентный размер; 0 = оценка по размеру архива
+    max_words: int = 0       # >0 — брать только первые N слов (частотный порядок, для прунинга)
 
     @property
     def path(self) -> Path:
@@ -83,6 +84,17 @@ class ModelSpec:
 
 
 MODELS: tuple[ModelSpec, ...] = (
+    ModelSpec(
+        id="en-small", flag="🇬🇧", label="English Small", language="en",
+        name="Google News Word2Vec 300D · top-250k",
+        detail="250k tokens · 300D · Google News, обрезанная до частотного топа",
+        archive="GoogleNews-vectors-negative300.bin.gz",
+        urls=(
+            "https://github.com/RaRe-Technologies/gensim-data/releases/download/word2vec-google-news-300/word2vec-google-news-300.gz",
+            "https://huggingface.co/LoganKilpatrick/GoogleNews-vectors-negative300/resolve/main/GoogleNews-vectors-negative300.bin.gz",
+        ),
+        size_mb=1650, ram_mb=420, max_words=250_000,
+    ),
     ModelSpec(
         id="en-google", flag="🇬🇧", label="English Classic", language="en",
         name="Google News Word2Vec 300D",
@@ -245,7 +257,8 @@ class _ChunkReader:
         return parts[0] if len(parts) == 1 else b"".join(parts)
 
 
-def _read_word2vec_binary(stream, spec: ModelSpec) -> WordSpace:
+def _read_word2vec_binary(stream, spec: ModelSpec, max_words: int = 0) -> WordSpace:
+    """Читает word2vec binary. max_words>0 — брать только первые N слов (частотный порядок)."""
     reader = _ChunkReader(stream)
     header = reader.read_until(b"\n").strip().split()
     if len(header) != 2:
@@ -253,16 +266,20 @@ def _read_word2vec_binary(stream, spec: ModelSpec) -> WordSpace:
     count, dims = map(int, header)
     if not 1 <= dims <= 4096 or not 1 <= count <= 5_000_000:
         raise ValueError(f"Unexpected Word2Vec shape {count} x {dims}")
-    matrix = np.empty((count, dims), dtype=np.float32)
+    take = count if max_words <= 0 else min(count, max_words)
+    matrix = np.empty((take, dims), dtype=np.float32)
     words = []
     append = words.append
-    for i in range(count):
+    for i in range(take):
         token = reader.read_token()
         if len(token) > 1024:
             raise ValueError("Word2Vec token too long")
         append(token.decode("utf-8", errors="replace"))
         raw = reader.read_exact(dims * 4)
         matrix[i] = np.frombuffer(raw, dtype="<f4")
+    if take < count:
+        logger.info("Модель %s обрезана: %d из %d слов (частотный порядок)",
+                    spec.id, take, count)
     return WordSpace(words, matrix, spec)
 
 
@@ -328,9 +345,9 @@ def _load_model(spec: ModelSpec) -> WordSpace:
             raise ValueError(f"В архиве {path.name} нет model.bin или текстовых векторов")
         if suffix == ".gz":
             stream = stack.enter_context(gzip.open(path, "rb"))
-            return _read_word2vec_binary(stream, spec)
+            return _read_word2vec_binary(stream, spec, spec.max_words)
         stream = stack.enter_context(path.open("rb"))
-        return _read_word2vec_binary(stream, spec)
+        return _read_word2vec_binary(stream, spec, spec.max_words)
 
 
 def available_memory_mb() -> int | None:
