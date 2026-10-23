@@ -37,10 +37,13 @@ services:
       # off — выключено, warn — только логировать вердикты, queue — спорное в очередь,
       # strict — публикация только после ручного одобрения.
       VECTOR_CALC_MODERATION: "queue"
+      # Профиль аудитории: teen — мягче (до 18), kids — строже (от 7 лет).
+      VECTOR_CALC_MODERATION_PROFILE: "teen"
       VECTOR_CALC_LLM_URL: "http://192.168.1.102:8080/v1"
       VECTOR_CALC_LLM_MODEL: "local"
-      # VECTOR_CALC_LLM_NO_THINK: "1"      # быстрее, но вердикты строже
-      # VECTOR_CALC_LLM_TIMEOUT: "120"
+      # Без «размышлений» модель отвечает ~1 c вместо 5-10 c.
+      VECTOR_CALC_LLM_NO_THINK: "1"
+      # VECTOR_CALC_LLM_TIMEOUT: "60"
       # Токен для очереди модерации: GET /api/moderation/queue, POST /api/moderation/{id}
       VECTOR_CALC_ADMIN_TOKEN: "смените-этот-токен"
       # "1" включать только когда порт приложения закрыт loopback-биндингом

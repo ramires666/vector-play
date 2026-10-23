@@ -53,6 +53,16 @@ const VP_STRINGS = {
     ariaDelete: "Delete word {n}",
     galleryTitle: "🔥 VECTORPLAY / MEMORIES",
     docTitleGallery: "Memories — VectorPlay",
+    modeButton: "Mode",
+    modeTooltip: "Collection view mode.\n\n• For kids — only examples without moderation notes\n• For teens — everything except coarse insults\n• Show all — no filtering by notes\n\nThe strictness of checks when saving is set on the server (VECTOR_CALC_MODERATION_PROFILE).",
+    modeKids: "For kids",
+    modeKidsHint: "Hides examples with moderation notes: obscenities, sensitive topics",
+    modeTeen: "For teens",
+    modeTeenHint: "Everything except coarse insults/hate (blocks)",
+    modeOff: "Show all",
+    modeOffHint: "No filtering by moderation notes at all",
+    modeHint: "The gear filters what is shown in this browser. Save-time checks are configured on the server.",
+    shown: "shown",
     back: "← Calculator",
     galleryHeadline: "The wild collection",
     galleryIntro: "All saved word equations, shared by visitors of this server. New examples appear automatically.",
@@ -115,6 +125,16 @@ const VP_STRINGS = {
     ariaDelete: "Удалить слово {n}",
     galleryTitle: "🔥 VECTORPLAY / МЕМОРИЗ",
     docTitleGallery: "Мемориз — VectorPlay",
+    modeButton: "Режим",
+    modeTooltip: "Режим показа коллекции.\n\n• Для детей — только примеры без замечаний модерации\n• Для подростков — всё, кроме грубых оскорблений\n• Показывать всё — без фильтра по замечаниям\n\nСтрогость проверки при сохранении задаётся на сервере (VECTOR_CALC_MODERATION_PROFILE).",
+    modeKids: "Для детей",
+    modeKidsHint: "Скрывает примеры с замечаниями модерации: мат, спорные темы",
+    modeTeen: "Для подростков",
+    modeTeenHint: "Всё, кроме грубых оскорблений и травли (заблокированное скрыто)",
+    modeOff: "Показывать всё",
+    modeOffHint: "Совсем без фильтра по замечаниям модерации",
+    modeHint: "Шестерёнка фильтрует показ в этом браузере. Строгость проверки при сохранении настраивается на сервере.",
+    shown: "показано",
     back: "← Калькулятор",
     galleryHeadline: "Угарная коллекция",
     galleryIntro: "Все сохранённые словесные уравнения, общие для посетителей сервера. Новые примеры появляются автоматически.",
@@ -190,6 +210,17 @@ const VP = {
 
   availableLanguages() {
     return [...new Set(this.models.map((item) => item.language))];
+  },
+
+  memoriesMode() {
+    const value = localStorage.getItem("vp.memoriesMode");
+    return ["kids", "teen", "off"].includes(value) ? value : "teen";
+  },
+
+  setMemoriesMode(mode) {
+    if (!["kids", "teen", "off"].includes(mode)) return;
+    localStorage.setItem("vp.memoriesMode", mode);
+    this._emit();
   },
 
   renderLangSwitch(host) {
@@ -326,6 +357,9 @@ const VP = {
     } catch (error) {
       this.models = [];
     }
+    // Если доступен один язык (например, английские модели выключены) — сразу его.
+    const languages = this.availableLanguages();
+    if (!storedLang && languages.length === 1) this.lang = languages[0];
     this.applyStatic();
     this.renderLangSwitch(langHost);
     this._emit();

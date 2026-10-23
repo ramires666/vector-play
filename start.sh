@@ -23,8 +23,10 @@ export VECTOR_CALC_DEFAULT_MODEL="${VECTOR_CALC_DEFAULT_MODEL:-ru-rusvectores}"
 
 # Модерация коллекции: словари + векторные эвристики + LLM (OpenAI-совместимый адрес).
 export VECTOR_CALC_MODERATION="${VECTOR_CALC_MODERATION:-queue}"
+export VECTOR_CALC_MODERATION_PROFILE="${VECTOR_CALC_MODERATION_PROFILE:-teen}"   # kids — строже (7+)
 export VECTOR_CALC_LLM_URL="${VECTOR_CALC_LLM_URL:-http://192.168.1.102:8080/v1}"
 export VECTOR_CALC_LLM_MODEL="${VECTOR_CALC_LLM_MODEL:-local}"
+export VECTOR_CALC_LLM_NO_THINK="${VECTOR_CALC_LLM_NO_THINK:-1}"                  # ~1 c вместо 5-10 c
 export VECTOR_CALC_ADMIN_TOKEN="${VECTOR_CALC_ADMIN_TOKEN:-local-admin}"
 
 if ! command -v "$PYTHON" >/dev/null 2>&1; then

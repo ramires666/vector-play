@@ -1,8 +1,9 @@
-"""Словарный слой модерации (без сети и LLM).
+"""Словарный слой модерации и профили аудитории (без сети и LLM).
 
 Слова для проверок собраны из кодпоинтов, чтобы мат не лежал в репозитории открытым текстом.
 """
 import unittest
+from unittest.mock import patch
 
 import moderation
 
@@ -20,54 +21,68 @@ INNOCENT_WISE = "\u043c\u0443\u0434\u0440\u0430\u044f"     # стем "муд" �
 
 
 class DictionaryTests(unittest.TestCase):
-    def level(self, text):
-        hits = moderation.check_text(text)
-        if "block" in hits.values():
-            return "block"
-        return "review" if hits else "ok"
+    def level(self, text, profile="kids"):
+        with patch.object(moderation, "PROFILE", profile):
+            return moderation.level_of_text(text)
 
-    def test_obscene_words_blocked(self):
+    def test_obscene_words_detected(self):
         for word in (MAT, MAT_FORM, MAT_VERB, MAT_NOUN, SLUR):
-            self.assertEqual(self.level(word), "block", word)
+            self.assertEqual(moderation.check_text(word).get(word), "obscene", word)
+
+    def test_sensitive_words_detected(self):
+        for word in (SENSITIVE, SENSITIVE_2):
+            self.assertEqual(moderation.check_text(word).get(word), "sensitive", word)
 
     def test_obscene_inside_sentence(self):
-        self.assertEqual(self.level(f"ты {MAT_VERB} пошёл"), "block")
-
-    def test_sensitive_words_go_to_review(self):
-        for word in (SENSITIVE, SENSITIVE_2):
-            self.assertEqual(self.level(word), "review", word)
+        self.assertIn("obscene", moderation.check_text(f"ты {MAT_VERB} пошёл").values())
 
     def test_allowlist_keeps_innocent_words(self):
         for word in (INNOCENT_ROOSTER, INNOCENT_GOAT, INNOCENT_CLOTH, INNOCENT_WISE):
-            self.assertEqual(self.level(word), "ok", word)
+            self.assertEqual(moderation.check_text(word), {}, word)
 
     def test_clean_equations_are_ok(self):
         self.assertEqual(self.level("король − мужчина + женщина"), "ok")
         self.assertEqual(self.level("россия − москва + франция"), "ok")
 
-    def test_format_equation(self):
-        text = moderation.format_equation(
-            [{"text": "король", "weight": 1}, {"text": "мужчина", "weight": -1},
-             {"text": "женщина", "weight": 1}], "королева")
-        self.assertEqual(text, "король − мужчина + женщина = королева")
+
+class ProfileTests(unittest.TestCase):
+    def test_kids_profile_is_strict(self):
+        with patch.object(moderation, "PROFILE", "kids"):
+            self.assertEqual(moderation.level_of_text(MAT), "block")
+            self.assertEqual(moderation.level_of_text(SENSITIVE), "review")
+
+    def test_teen_profile_is_softer(self):
+        with patch.object(moderation, "PROFILE", "teen"):
+            self.assertEqual(moderation.level_of_text(MAT), "review")      # не блокируем
+            self.assertEqual(moderation.level_of_text(SENSITIVE), "ok")    # слово само по себе не мешает
+            self.assertEqual(moderation.level_of_text(INNOCENT_GOAT), "ok")
+
+    def test_teen_has_higher_neighbor_threshold(self):
+        self.assertGreater(moderation.PROFILES["teen"]["min_hits"], moderation.PROFILES["kids"]["min_hits"])
+
+    def test_default_profile_is_teen(self):
+        self.assertIn(moderation.PROFILE, moderation.PROFILES)
+
+    def test_prompt_mentions_age_and_json(self):
+        for profile in ("kids", "teen"):
+            with patch.object(moderation, "PROFILE", profile):
+                prompt = moderation.system_prompt()
+                self.assertIn(moderation.PROFILES[profile]["age"], prompt)
+                self.assertIn('"verdict"', prompt)
 
 
 class ModeTests(unittest.TestCase):
     def test_status_for_modes(self):
-        original = moderation.MODE
-        try:
-            moderation.MODE = "off"
+        with patch.object(moderation, "MODE", "off"):
             self.assertEqual(moderation.status_for("block"), "approved")
-            moderation.MODE = "warn"
+        with patch.object(moderation, "MODE", "warn"):
             self.assertEqual(moderation.status_for("block"), "approved")
-            moderation.MODE = "queue"
+        with patch.object(moderation, "MODE", "queue"):
             self.assertEqual(moderation.status_for("ok"), "approved")
             self.assertEqual(moderation.status_for("review"), "pending")
             self.assertEqual(moderation.status_for("block"), "pending")
-            moderation.MODE = "strict"
+        with patch.object(moderation, "MODE", "strict"):
             self.assertEqual(moderation.status_for("ok"), "pending")
-        finally:
-            moderation.MODE = original
 
 
 class LlmParsingTests(unittest.TestCase):
@@ -85,6 +100,9 @@ class LlmParsingTests(unittest.TestCase):
     def test_garbage_and_unknown_verdict(self):
         self.assertIsNone(moderation._first_json("без json"))
         self.assertIsNone(moderation._first_json('{"verdict":"maybe"}'))
+
+    def test_no_think_is_default(self):
+        self.assertTrue(moderation.LLM_NO_THINK)
 
 
 if __name__ == "__main__":

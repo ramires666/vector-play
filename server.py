@@ -49,6 +49,13 @@ RATE_API = int(os.getenv("VECTOR_CALC_RATE_API", "600"))        # requests per m
 RATE_WRITE = int(os.getenv("VECTOR_CALC_RATE_WRITE", "30"))     # heavy POSTs per minute per IP
 HEAVY_POST_PATHS = {"/api/calculate", "/api/memories", "/api/moderate"}   # они идут через WRITE_LIMITER
 ADMIN_TOKEN = os.getenv("VECTOR_CALC_ADMIN_TOKEN", "").strip()
+# Режимы показа коллекции (шестерёнка на /memories): какие вердикты показывать.
+# None — без фильтра; запись без данных модерации считается чистой.
+VERDICT_FILTERS: dict[str, tuple | None] = {
+    "kids": ("ok", None),
+    "teen": ("ok", "review", None),
+    "off": None,
+}
 MAX_CONNECTIONS = int(os.getenv("VECTOR_CALC_MAX_CONNECTIONS", "128"))
 DOCS_ENABLED = os.getenv("VECTOR_CALC_DOCS", "0").strip().lower() in {"1", "true", "yes", "on"}
 ALLOWED_HOSTS = [item.strip() for item in os.getenv("VECTOR_CALC_ALLOWED_HOSTS", "").split(",") if item.strip()]
@@ -373,7 +380,8 @@ def list_memories(request: Request,
                   after: Annotated[int, Query(ge=0)] = 0,
                   limit: Annotated[int, Query(ge=1, le=100)] = 50,
                   model: Annotated[str | None, Query(max_length=64)] = None,
-                  status: Annotated[str | None, Query(max_length=16)] = None) -> dict[str, Any]:
+                  status: Annotated[str | None, Query(max_length=16)] = None,
+                  mode: Annotated[str | None, Query(max_length=16)] = None) -> dict[str, Any]:
     if model is not None and model not in engine.ENABLED_MODEL_IDS:
         raise HTTPException(status_code=400, detail=f"Неизвестная модель: {model}")
     # Публично показываем только одобренное; очередь модерации — по админ-токену.
@@ -384,7 +392,16 @@ def list_memories(request: Request,
     # Без явного фильтра показываем коллекцию только включённых моделей:
     # записи выключенных (например, английских) в интерфейсе не мелькают.
     enabled = None if model is not None else sorted(engine.ENABLED_MODEL_IDS)
-    return memories.list_memories(after=after, limit=limit, model=model, models=enabled, status=status)
+    result = memories.list_memories(after=after, limit=limit, model=model, models=enabled, status=status)
+    # Режим показа (шестерёнка на странице коллекции): kids — только записи без
+    # замечаний, teen — всё кроме заблокированного, off — без фильтра по вердиктам.
+    allowed = VERDICT_FILTERS.get(mode or "")
+    if allowed is not None:
+        result["items"] = [item for item in result["items"]
+                           if ((item.get("moderation") or {}).get("verdict")) in allowed]
+        result["shown"] = len(result["items"])
+        result["mode"] = mode
+    return result
 
 
 @app.post("/api/calculate")
