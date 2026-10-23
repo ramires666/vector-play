@@ -52,9 +52,13 @@ def init_db():
             conn.execute("ALTER TABLE memories ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'")
         if "moderation" not in columns:
             conn.execute("ALTER TABLE memories ADD COLUMN moderation TEXT")
+        if "group_name" not in columns:
+            # Группа допуска: kids / teen / adult (NULL — ещё не оценивали).
+            conn.execute("ALTER TABLE memories ADD COLUMN group_name TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS memories_created_idx ON memories(id DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS memories_model_idx ON memories(model, id DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS memories_status_idx ON memories(status, id DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS memories_group_idx ON memories(group_name, id DESC)")
         _migrate_signatures(conn)
 
 
@@ -128,10 +132,32 @@ def signature(terms, model_id):
 
 
 def as_item(row):
-    return {"id": row["id"], "model": row["model"], "status": row["status"],
+    return {"id": row["id"], "model": row["model"], "status": row["status"], "group": row["group_name"],
             "moderation": json.loads(row["moderation"]) if row["moderation"] else None,
             "created_at": row["created_at"], "terms": json.loads(row["terms_json"]),
             "answer": row["answer"], "similarity": row["similarity"]}
+
+
+def set_assessment(memory_id, moderation=None, group_name=None, status=None):
+    """Записать оценку модерации, группу допуска и/или статус (в том числе вручную)."""
+    fields, params = [], []
+    if moderation is not None:
+        fields.append("moderation = ?")
+        params.append(json.dumps(moderation, ensure_ascii=False))
+    if group_name is not None:
+        fields.append("group_name = ?")
+        params.append(group_name)
+    if status is not None:
+        fields.append("status = ?")
+        params.append(status)
+    if not fields:
+        return None
+    params.append(memory_id)
+    with _write_lock:
+        with closing(connect()) as conn, conn:
+            conn.execute(f"UPDATE memories SET {', '.join(fields)} WHERE id=?", params)
+            row = conn.execute("SELECT * FROM memories WHERE id=?", (memory_id,)).fetchone()
+    return as_item(row) if row else None
 
 
 def list_memories(after=0, limit=50, model=None, models=None, status=None):
@@ -160,7 +186,7 @@ def list_memories(after=0, limit=50, model=None, models=None, status=None):
     where_any = " AND ".join(filters) if filters else "1=1"
     with closing(connect()) as conn:
         # Newest first, both for initial display and incremental refresh.
-        rows = conn.execute(f"""SELECT id,model,status,moderation,created_at,terms_json,answer,similarity
+        rows = conn.execute(f"""SELECT id,model,status,group_name,moderation,created_at,terms_json,answer,similarity
                                FROM memories WHERE {where_rows} ORDER BY id DESC LIMIT ?""",
                             (after, *filter_params, limit)).fetchall()
         count = conn.execute(f"SELECT COUNT(*) FROM memories WHERE {where_any}", filter_params).fetchone()[0]

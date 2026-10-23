@@ -49,13 +49,20 @@ RATE_API = int(os.getenv("VECTOR_CALC_RATE_API", "600"))        # requests per m
 RATE_WRITE = int(os.getenv("VECTOR_CALC_RATE_WRITE", "30"))     # heavy POSTs per minute per IP
 HEAVY_POST_PATHS = {"/api/calculate", "/api/memories", "/api/moderate"}   # они идут через WRITE_LIMITER
 ADMIN_TOKEN = os.getenv("VECTOR_CALC_ADMIN_TOKEN", "").strip()
-# Режимы показа коллекции (шестерёнка на /memories): какие вердикты показывать.
-# None — без фильтра; запись без данных модерации считается чистой.
-VERDICT_FILTERS: dict[str, tuple | None] = {
-    "kids": ("ok", None),
-    "teen": ("ok", "review", None),
-    "off": None,
+# Режимы показа коллекции (шестерёнка на /memories) → какие группы допуска видеть.
+# Запись без оценки считается безопасной (kids) и видна во всех режимах.
+MODE_GROUPS: dict[str, tuple] = {
+    "kids": ("kids",),
+    "teen": ("kids", "teen"),
+    "off": ("kids", "teen", "adult"),
 }
+
+
+def _item_group(item: dict) -> str:
+    if item.get("group"):
+        return item["group"]
+    verdict = (item.get("moderation") or {}).get("verdict")
+    return {"ok": "kids", "review": "teen", "block": "adult"}.get(verdict, "kids")
 MAX_CONNECTIONS = int(os.getenv("VECTOR_CALC_MAX_CONNECTIONS", "128"))
 DOCS_ENABLED = os.getenv("VECTOR_CALC_DOCS", "0").strip().lower() in {"1", "true", "yes", "on"}
 ALLOWED_HOSTS = [item.strip() for item in os.getenv("VECTOR_CALC_ALLOWED_HOSTS", "").split(",") if item.strip()]
@@ -393,12 +400,11 @@ def list_memories(request: Request,
     # записи выключенных (например, английских) в интерфейсе не мелькают.
     enabled = None if model is not None else sorted(engine.ENABLED_MODEL_IDS)
     result = memories.list_memories(after=after, limit=limit, model=model, models=enabled, status=status)
-    # Режим показа (шестерёнка на странице коллекции): kids — только записи без
-    # замечаний, teen — всё кроме заблокированного, off — без фильтра по вердиктам.
-    allowed = VERDICT_FILTERS.get(mode or "")
-    if allowed is not None:
-        result["items"] = [item for item in result["items"]
-                           if ((item.get("moderation") or {}).get("verdict")) in allowed]
+    # Режим показа (шестерёнка на странице коллекции): фильтруем по группе допуска —
+    # kids видит только детские, teen — детские и подростковые, off — всё.
+    groups = MODE_GROUPS.get(mode or "")
+    if groups is not None:
+        result["items"] = [item for item in result["items"] if _item_group(item) in groups]
         result["shown"] = len(result["items"])
         result["mode"] = mode
     return result
@@ -488,6 +494,59 @@ def moderation_decide(memory_id: int, request: Request,
     if item is None:
         raise HTTPException(status_code=404, detail="Запись не найдена")
     return {"item": item, "action": action}
+
+
+def _memory_row(memory_id: int):
+    from contextlib import closing
+    with closing(memories.connect()) as conn:
+        row = conn.execute("SELECT * FROM memories WHERE id=?", (memory_id,)).fetchone()
+    return memories.as_item(row) if row is not None else None
+
+
+@app.post("/api/moderation/{memory_id}/recheck")
+def moderation_recheck(memory_id: int, request: Request,
+                       method: Annotated[str, Query(pattern="^(llm|vectors)$")] = "vectors") -> dict[str, Any]:
+    """Переоценка одной записи: словари+вектора или ещё и LLM (по выбору)."""
+    _require_admin(request)
+    item = _memory_row(memory_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+    try:
+        with _calc_slot():
+            calculation = engine.calculate(item["terms"], top_k=10, exclude_terms=True, model_id=item["model"])
+    except engine.ModelNotReady as exc:
+        raise HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "10"}) from exc
+    except engine.ModelUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (engine.UnknownModel, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    report = moderation.review(item["terms"], calculation["results"], model_id=item["model"],
+                               use_llm=(method == "llm"))
+    report["source"] = "llm" if (method == "llm" and report.get("llm")) else "vectors"
+    report["group"] = moderation.group_for(report["verdict"])
+    updated = memories.set_assessment(memory_id, moderation=report, group_name=report["group"])
+    return {"item": updated, "method": method, "group": report["group"], "verdict": report["verdict"]}
+
+
+@app.post("/api/moderation/{memory_id}/group")
+def moderation_set_group(memory_id: int, request: Request,
+                         group: Annotated[str, Query(pattern="^(kids|teen|adult)$")]) -> dict[str, Any]:
+    """Ручная смена группы допуска: оценка помечается как сделанная человеком."""
+    _require_admin(request)
+    item = _memory_row(memory_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+    report = dict(item.get("moderation") or {})
+    report.update({
+        "verdict": {"kids": "ok", "teen": "review", "adult": "block"}[group],
+        "group": group,
+        "source": "human",
+        "reasons": ["Группу допуска изменили вручную"],
+        "mode": moderation.MODE,
+        "profile": moderation.PROFILE,
+    })
+    updated = memories.set_assessment(memory_id, moderation=report, group_name=group)
+    return {"item": updated, "group": group}
 
 
 def _first_error_message(exc: RequestValidationError) -> str:

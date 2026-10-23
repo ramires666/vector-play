@@ -330,11 +330,15 @@ def review(terms, results, model_id: str | None = None, use_llm: bool = True) ->
     llm = None
     if use_llm and LLM_URL and MODE != "off":
         llm = llm_review(format_equation(terms, answer))
-        if llm is not None and _LEVEL[llm["verdict"]] > _LEVEL[verdict]:
-            verdict = llm["verdict"]
-            categories.extend(item for item in llm["categories"] if item not in categories)
+        if llm is not None:
+            if _LEVEL[llm["verdict"]] > _LEVEL[verdict]:
+                verdict = llm["verdict"]
+                categories.extend(item for item in llm["categories"] if item not in categories)
             if llm["reason"]:
                 reasons.append("LLM: " + llm["reason"])
+
+    if verdict == "ok" and not reasons:
+        reasons.append("Замечаний не найдено: словари и ближайшие слова чистые")
 
     return {
         "verdict": verdict,
@@ -348,6 +352,14 @@ def review(terms, results, model_id: str | None = None, use_llm: bool = True) ->
         "mode": MODE,
         "elapsed": round(time.monotonic() - started, 2),
     }
+
+
+GROUPS = ("kids", "teen", "adult")
+
+
+def group_for(verdict: str) -> str:
+    """Группа допуска по вердикту: ok -> kids, review -> teen, block -> adult."""
+    return {"ok": "kids", "review": "teen", "block": "adult"}.get(verdict, "teen")
 
 
 def status_for(verdict: str) -> str:
