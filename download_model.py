@@ -6,7 +6,7 @@ Usage:
     python download_model.py --all              # все включённые модели (VECTOR_CALC_ENABLED_MODELS)
     python download_model.py --force en-google  # перекачать заново
 
-Модель по умолчанию задаётся VECTOR_CALC_DEFAULT_MODEL (сейчас en-small — 128 МБ).
+Модель по умолчанию задаётся VECTOR_CALC_DEFAULT_MODEL (сейчас en-small — 376 МБ).
 Каждая полностью скачанная модель помечается файлом <архив>.ok, поэтому
 повторный запуск ничего не перекачивает, а прерванная закачка продолжается
 с места обрыва (HTTP Range).

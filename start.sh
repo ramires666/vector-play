@@ -15,8 +15,8 @@ VENV="${VENV:-.venv}"
 VENV_PY="$VENV/bin/python"
 ARCHIVE="models/ruwikiruscorpora_upos_skipgram_300_2_2019.zip"
 
-# Модели: по умолчанию только две самые лёгкие — en-small (GloVe Wiki+Gigaword
-# 100D, загрузка 128 МБ) и русская (RusVectōrēs, 0.6 ГБ). Тяжёлые
+# Модели: по умолчанию две компактные полноценные — en-small (GloVe Wiki+Gigaword
+# 300D, 400k слов, загрузка 376 МБ) и русская (RusVectōrēs, 0.6 ГБ). Тяжёлые
 # en-google/en-glove остаются в коде (MODELS в word2vec_engine.py), не грузятся
 # и не показываются в меню; включить: VECTOR_CALC_ENABLED_MODELS=en-google,en-glove,ru-rusvectores
 export VECTOR_CALC_ENABLED_MODELS="${VECTOR_CALC_ENABLED_MODELS:-en-small,ru-rusvectores}"

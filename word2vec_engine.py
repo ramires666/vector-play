@@ -86,11 +86,11 @@ class ModelSpec:
 MODELS: tuple[ModelSpec, ...] = (
     ModelSpec(
         id="en-small", flag="🇬🇧", label="English Small", language="en",
-        name="GloVe Wiki+Gigaword 100D",
-        detail="400k tokens · 100D · лёгкая английская модель",
-        archive="glove-wiki-gigaword-100.gz",
-        urls=("https://github.com/RaRe-Technologies/gensim-data/releases/download/glove-wiki-gigaword-100/glove-wiki-gigaword-100.gz",),
-        size_mb=130, ram_mb=230,
+        name="GloVe Wiki+Gigaword 300D",
+        detail="400k tokens · 300D · полноразмерные векторы",
+        archive="glove-wiki-gigaword-300.gz",
+        urls=("https://github.com/RaRe-Technologies/gensim-data/releases/download/glove-wiki-gigaword-300/glove-wiki-gigaword-300.gz",),
+        size_mb=376, ram_mb=560,
     ),
     ModelSpec(
         id="en-google", flag="🇬🇧", label="English Classic", language="en",

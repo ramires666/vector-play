@@ -149,10 +149,11 @@ class RegistryTests(unittest.TestCase):
     def test_english_small_is_a_little_standalone_download(self):
         small = engine.MODELS_BY_ID["en-small"]
         full = engine.MODELS_BY_ID["en-google"]
-        self.assertEqual(small.archive, "glove-wiki-gigaword-100.gz")
-        self.assertNotEqual(small.archive, full.archive)   # никакой 1.6 ГБ загрузки
-        self.assertLessEqual(small.size_mb, 200)           # микромодель
-        self.assertEqual(small.max_words, 0)               # обрезка не нужна
+        self.assertEqual(small.archive, "glove-wiki-gigaword-300.gz")
+        self.assertIn("300D", small.name)                   # не хуже русской (300 измерений)
+        self.assertNotEqual(small.archive, full.archive)    # никакой 1.6 ГБ загрузки
+        self.assertLessEqual(small.size_mb, 500)            # микромодель
+        self.assertEqual(small.max_words, 0)                # обрезка не нужна
         self.assertLess(small.planned_ram_mb, full.planned_ram_mb)
 
     def test_enabled_specs_default_is_full_registry(self):
