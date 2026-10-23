@@ -237,6 +237,7 @@ const VP = {
   defaultMode: "kids",
   _listeners: [],
   _langHost: null,
+  _watching: false,
 
   t(key) {
     const table = VP_STRINGS[this.lang] || VP_STRINGS.en;
@@ -267,6 +268,22 @@ const VP = {
 
   _emit() {
     for (const listener of this._listeners) listener(this.lang, this.model);
+  },
+
+  watchOtherTabs() {
+    // Соседняя вкладка переключила язык/модель/режим показа — подхватываем
+    // без перезагрузки, чтобы подписи (включая группы допуска) перевелись сразу.
+    if (this._watching) return;
+    this._watching = true;
+    window.addEventListener("storage", (event) => {
+      if (!event.key || event.storageArea !== localStorage) return;
+      if (event.key === "vp.model" || event.key === "vp.lang") {
+        const stored = localStorage.getItem("vp.model");
+        if (stored && stored !== this.model && this.info(stored)) this.selectModel(stored);
+        return;
+      }
+      if (event.key === "vp.memoriesMode") this._emit();
+    });
   },
 
   applyStatic() {
@@ -397,6 +414,7 @@ const VP = {
   async init(langHost, modelHost) {
     this._langHost = langHost;
     this._modelHost = modelHost;
+    this.watchOtherTabs();
     const storedLang = localStorage.getItem("vp.lang");
     const storedModel = localStorage.getItem("vp.model");
     this.lang = storedLang === "ru" ? "ru" : "en";
@@ -423,6 +441,7 @@ const VP = {
 
   async initLangOnly(langHost) {
     this._langHost = langHost;
+    this.watchOtherTabs();
     const storedLang = localStorage.getItem("vp.lang");
     this.lang = storedLang === "ru" ? "ru" : "en";
     try {

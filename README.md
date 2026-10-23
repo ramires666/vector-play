@@ -436,7 +436,7 @@ CREATE TABLE memories (
 | `vp.adminToken` | Admin token for the settings block |
 | `vp.pendingExample` | Transient equation handed from the gallery to the calculator |
 
-If `vp.model` points to a model that was since disabled, the page self-heals: it clears the stored value and reloads once (the `vp.staleModel` session flag prevents reload loops). After changing `VECTOR_CALC_ENABLED_MODELS`, a browser refresh (F5) is enough.
+If `vp.model` points to a model that was since disabled, the page self-heals: it clears the stored value and reloads once (the `vp.staleModel` session flag prevents reload loops). After changing `VECTOR_CALC_ENABLED_MODELS`, a browser refresh (F5) is enough. HTML pages and `app.js` are served with `Cache-Control: no-store`, so an updated server never shows a stale interface. Switching the language, model or display mode in one tab updates the other open tabs automatically.
 
 ---
 

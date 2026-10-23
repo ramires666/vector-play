@@ -372,17 +372,20 @@ async def guard(request: Request, call_next):
 
 @app.get("/", include_in_schema=False)
 def index_page() -> FileResponse:
-    return FileResponse(ROOT / "index.html", media_type="text/html; charset=utf-8")
+    return FileResponse(ROOT / "index.html", media_type="text/html; charset=utf-8",
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/memories", include_in_schema=False)
 def memories_page() -> FileResponse:
-    return FileResponse(ROOT / "memories.html", media_type="text/html; charset=utf-8")
+    return FileResponse(ROOT / "memories.html", media_type="text/html; charset=utf-8",
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/app.js", include_in_schema=False)
 def app_script() -> FileResponse:
-    return FileResponse(ROOT / "app.js", media_type="text/javascript; charset=utf-8")
+    return FileResponse(ROOT / "app.js", media_type="text/javascript; charset=utf-8",
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/models")
