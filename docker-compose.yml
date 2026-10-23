@@ -49,7 +49,6 @@ services:
       # (127.0.0.1:58765:58765) и единственный вход — nginx, который
       # перезаписывает X-Forwarded-For. Иначе IP в лимитере подделывается.
       VECTOR_CALC_TRUST_PROXY: "0"
-      # VECTOR_CALC_DEFAULT_MODEL: "ru-rusvectores"  # модель, которая грузится при старте
       # Лимиты можно подкрутить:
       # VECTOR_CALC_RATE_API: "600"        # запросов/мин на IP (GET API, страницы)
       # VECTOR_CALC_RATE_WRITE: "30"       # тяжёлые POST на IP
