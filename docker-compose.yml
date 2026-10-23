@@ -44,7 +44,7 @@ services:
       VECTOR_CALC_LLM_NO_THINK: "1"
       # VECTOR_CALC_LLM_TIMEOUT: "60"
       # Токен для очереди модерации: GET /api/moderation/queue, POST /api/moderation/{id}
-      VECTOR_CALC_ADMIN_TOKEN: "смените-этот-токен"
+      VECTOR_CALC_ADMIN_TOKEN: "xxx111xxx333"
       # "1" включать только когда порт приложения закрыт loopback-биндингом
       # (127.0.0.1:58765:58765) и единственный вход — nginx, который
       # перезаписывает X-Forwarded-For. Иначе IP в лимитере подделывается.
