@@ -437,14 +437,18 @@ def add_memory(payload: MemoryRequest, response: Response) -> dict[str, Any]:
             return {"item": existing, "created": False}
         report = None
         status = "approved"
+        group_name = None
         if moderation.MODE != "off":
             with _calc_slot():
                 calculation = engine.calculate(terms, top_k=10, exclude_terms=True, model_id=payload.model)
-            # Модерация (включая LLM) идёт вне слота расчёта: LLM может думать секунды,
-            # и держать из-за неё очередь вычислений нельзя.
+            # Модерация (включая LLM) идёт вне слота расчёта: LLM может думать секунды.
             report = moderation.review(terms, calculation["results"], model_id=payload.model)
+            report["source"] = "llm" if report.get("llm") else "vectors"
+            report["group"] = moderation.group_for(report["verdict"])
+            group_name = report["group"]
             status = moderation.status_for(report["verdict"])
-        item, created = memories.add_memory(terms, model_id=payload.model, status=status, moderation=report)
+        item, created = memories.add_memory(terms, model_id=payload.model, status=status,
+                                            moderation=report, group_name=group_name)
     except engine.ModelNotReady as exc:
         raise HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "10"}) from exc
     except engine.ModelUnavailable as exc:

@@ -203,10 +203,12 @@ def find_existing(raw_terms, model_id=None):
     return as_item(row) if row else None
 
 
-def add_memory(raw_terms, model_id=None, status="approved", moderation=None):
+def add_memory(raw_terms, model_id=None, status="approved", moderation=None, group_name=None):
     model_id = validate_model(model_id or engine.DEFAULT_MODEL)
     if status not in ("approved", "pending", "rejected"):
         raise ValueError("Некорректный статус")
+    if group_name is not None and group_name not in ("kids", "teen", "adult"):
+        raise ValueError("Некорректная группа допуска")
     terms = validate_terms(raw_terms)
     digest = signature(terms, model_id)
     moderation_json = json.dumps(moderation, ensure_ascii=False) if moderation else None
@@ -224,9 +226,9 @@ def add_memory(raw_terms, model_id=None, status="approved", moderation=None):
     with _write_lock:
         with closing(connect()) as conn, conn:
             conn.execute("""INSERT OR IGNORE INTO memories
-                         (signature,model,status,moderation,created_at,terms_json,answer,similarity)
-                         VALUES(?,?,?,?,?,?,?,?)""", (
-                digest, model_id, status, moderation_json, created_at,
+                         (signature,model,status,group_name,moderation,created_at,terms_json,answer,similarity)
+                         VALUES(?,?,?,?,?,?,?,?,?)""", (
+                digest, model_id, status, group_name, moderation_json, created_at,
                 json.dumps(terms, ensure_ascii=False),
                 best["text"].split(" · ")[0], best["similarity"]
             ))

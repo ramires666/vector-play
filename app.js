@@ -74,6 +74,9 @@ const VP_STRINGS = {
     recheckNothing: "Nothing to re-assess",
     settingsToken: "Admin token (for settings and manual changes)",
     needToken: "Admin token required — open “Settings” and paste the token",
+    tokenLooksWrong: "The token looks wrong: paste only the token value (letters, digits, dash), not a line from the config",
+    tokenRejected: "The server rejected the token — check VECTOR_CALC_ADMIN_TOKEN",
+    recheckFailed: "with errors",
     assessLabel: "Assessment",
     byLabel: "by",
     groupLabel: "Access group",
@@ -176,6 +179,9 @@ const VP_STRINGS = {
     recheckNothing: "Нечего переоценивать",
     settingsToken: "Токен админа (для настроек и ручных правок)",
     needToken: "Нужен токен админа — открой «Настройка» и вставь токен",
+    tokenLooksWrong: "Токен выглядит неправильно: вставляй только значение токена (буквы, цифры, дефис), а не строку из конфига",
+    tokenRejected: "Сервер отклонил токен — проверь VECTOR_CALC_ADMIN_TOKEN",
+    recheckFailed: "с ошибками",
     assessLabel: "Оценка",
     byLabel: "кто",
     groupLabel: "Группа допуска",
@@ -273,8 +279,10 @@ const VP = {
   },
 
   memoriesMode() {
+    // По умолчанию — детский режим: свежие мемориз и коллекция фильтруются сразу.
+    // Ручной выбор в шестерёнке сохраняется в браузере навсегда (localStorage).
     const value = localStorage.getItem("vp.memoriesMode");
-    return ["kids", "teen", "off"].includes(value) ? value : "teen";
+    return ["kids", "teen", "off"].includes(value) ? value : "kids";
   },
 
   setMemoriesMode(mode) {
