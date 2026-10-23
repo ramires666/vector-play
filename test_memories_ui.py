@@ -24,6 +24,10 @@ with sync_playwright() as p:
     assert gallery.locator(".use-hint").count()==0
     assert gallery.locator(".card-head .expression").count()==cards
     assert gallery.locator(".card-head .group-select").count()==cards
+    # пометка модели убрана, вместо неё компактный язык в строке выражения
+    assert gallery.locator(".model-tag").count()==0
+    assert gallery.locator(".expression .lang-tag").count()==cards
+    assert gallery.locator(".expression .lang-tag").first.inner_text()=="(ru Русский)"
     assert gallery.evaluate("document.documentElement.scrollWidth<=innerWidth")
     # «Примеры и мемориз» — один блок: пока калькулятором не пользовались,
     # сверху готовые примеры, ниже свежие из коллекции

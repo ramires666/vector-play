@@ -350,7 +350,7 @@ Every saved equation can be assessed by three layers, from cheapest to smartest:
 
 1. **Hashed dictionaries** — `moderation/*.txt` contain SHA-256 hashes of words and stems (so the repository holds no explicit obscene words), split into categories (`obscene`, `sensitive`) plus an allow list. Russian words are checked both as written and as pymorphy3 lemmas/stems; English words are case-folded. Category severity depends on the profile.
 2. **Vector heuristics** — the nearest neighbors of the answer (and of the terms) are checked against the same dictionaries. If enough neighbors hit a category (`VECTOR_CALC_MODERATION_MIN_HITS`), the record is flagged even when the exact word is not in the list.
-3. **LLM (optional)** — if `VECTOR_CALC_LLM_URL` is configured, a local OpenAI-compatible model reviews the whole equation (terms + answer) and returns strict JSON `{"verdict": "ok|review|block", "reasons": [...]}`. With `VECTOR_CALC_LLM_NO_THINK=1` (default) the request asks the engine to disable its reasoning phase; the client also falls back to `reasoning_content` if `content` is empty.
+3. **LLM (optional)** — if `VECTOR_CALC_LLM_URL` is configured, a local OpenAI-compatible model reviews the whole equation (terms + answer) and returns strict JSON `{"verdict": "ok|review|block", "categories": [...], "reason": "..."}`. With `VECTOR_CALC_LLM_NO_THINK=1` (default) the request asks the engine to disable its reasoning phase; the client also falls back to `reasoning_content` if `content` is empty. The prompt and every assessment reason (LLM, dictionary and vector alike) follow the **model language**: an English model is assessed with an English prompt and yields English reasons, a Russian model yields Russian ones.
 
 **Verdicts → access groups:** `ok → kids`, `review → teen`, `block → adult`.
 
@@ -420,7 +420,7 @@ CREATE TABLE memories (
 
 - Counter (`Total: N · shown: M`), model filter including "All models", and a `↻ Refresh` implied by the live refresh.
 - **Gear button** with the current display mode (🧑 Kids / 🧑‍🎓 Teens / 🌐 All): choosing a mode filters the gallery and is stored for this browser forever. The settings block right under the heading contains the assessment method, "Re-assess all records", the admin token and short explanations.
-- **Cards** show the equation and answer, the model tag, cosine similarity and date, the assessment line, the assessment reason (including a quoted LLM reason when present) and the access-group dropdown. Clicking a card (or pressing Enter/Space) stores `vp.pendingExample` and navigates to the calculator, which loads the equation automatically.
+- **Cards** show the equation and answer with a compact language marker — `(ru Русский)` or `(en English)` — right in the expression line, then cosine similarity and date, the assessment line, the assessment reason (including a quoted LLM reason when present) and the access-group dropdown. Clicking a card (or pressing Enter/Space) stores `vp.pendingExample` and navigates to the calculator, which loads the equation automatically.
 
 ### Local storage keys
 

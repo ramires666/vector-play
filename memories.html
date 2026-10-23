@@ -32,7 +32,7 @@
 .lang-button.active{background:#303c60;color:#f4f6ff}
 .model-select{max-width:300px;min-height:44px;border-radius:12px;border:1px solid #3c4866;background:#0f1727;color:#f4f6ff;padding:0 10px;font:inherit;font-size:13px}
 .bar-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.model-tag{display:inline-flex;margin-top:10px;padding:5px 10px;border-radius:999px;background:#28334e;color:#c9d3f3;font-size:12px;font-weight:700}
+.lang-tag{font-size:12px;font-weight:600;color:#9faed2;white-space:nowrap}
 @media(max-width:560px){header{flex-wrap:wrap}.top-controls{align-items:flex-start;width:100%}.model-select{max-width:100%;width:100%}}
 </style></head><body><main>
 <header><b data-i18n="galleryTitle">🔥 VECTORPLAY / MEMORIES</b><div class="top-controls"><div class="segmented" id="langSwitch" role="group" aria-label="Language"></div><a href="/" data-i18n="back">← Calculator</a></div></header>
@@ -48,6 +48,8 @@
 <div id="note" class="muted"></div>
 </main><script src="/app.js"></script><script>
 const $=id=>document.getElementById(id);
+// Самоназвания языков для компактной пометки в строке выражения: (ru Русский) / (en English)
+const LANGUAGE_NAMES={ru:"Русский",en:"English"};
 let busy=false;
 function element(tag,cls,txt){const x=document.createElement(tag);x.className=cls;if(txt!==undefined)x.textContent=txt;return x}
 function equation(item){return item.terms.map((t,i)=>(t.weight<0?"−":i?"+":"")+t.text).join(" ")+" = "+item.answer}
@@ -64,7 +66,7 @@ async function recheckAll(){const token=adminToken();if(!token){note(VP.t("needT
 function useInCalculator(item){try{localStorage.setItem("vp.pendingExample",JSON.stringify({terms:item.terms,model:item.model}))}catch(error){}location.href="/"}
 async function refresh(){if(busy)return;busy=true;try{const filter=currentFilter();const params=new URLSearchParams({limit:"100",mode:VP.memoriesMode()});if(filter!=="all")params.set("model",filter);const response=await fetch("/api/memories?"+params,{cache:"no-store"});if(!response.ok)throw Error("HTTP "+response.status);const data=await response.json();const counter=VP.t("total")+": "+data.total;$("counter").textContent=(typeof data.shown==="number"&&data.shown!==data.total)?counter+" · "+VP.t("shown")+": "+data.shown:counter;
 const signature=VP.lang+"|"+data.items.map(item=>item.id).join(",");
-if(signature!==itemsSignature){itemsSignature=signature;$("items").replaceChildren();if(!data.items.length)$("items").append(element("div","loading",VP.t("galleryEmpty")));for(const item of data.items){const card=element("article","card");card.tabIndex=0;card.setAttribute("role","button");card.title=VP.t("useInCalculator");const head=element("div","card-head");head.append(element("div","expression",equation(item)));card.append(head);const info=VP.info(item.model);card.append(element("span","model-tag",info?info.flag+" "+info.label:item.model));const meta=element("div","meta");const date=new Date(item.created_at);meta.append(element("span","",Number(item.similarity).toFixed(4)+" — "+VP.t("cosine")),element("span","",Number.isNaN(date.getTime())?"":date.toLocaleString(VP.locale())));card.append(meta);
+if(signature!==itemsSignature){itemsSignature=signature;$("items").replaceChildren();if(!data.items.length)$("items").append(element("div","loading",VP.t("galleryEmpty")));for(const item of data.items){const card=element("article","card");card.tabIndex=0;card.setAttribute("role","button");card.title=VP.t("useInCalculator");const head=element("div","card-head");const expr=element("div","expression",equation(item));const info=VP.info(item.model);const language=info?info.language:"ru";expr.append(" ",element("span","lang-tag","("+language+" "+(LANGUAGE_NAMES[language]||language)+")"));head.append(expr);card.append(head);const meta=element("div","meta");const date=new Date(item.created_at);meta.append(element("span","",Number(item.similarity).toFixed(4)+" — "+VP.t("cosine")),element("span","",Number.isNaN(date.getTime())?"":date.toLocaleString(VP.locale())));card.append(meta);
 const assessment=item.moderation||{};const group=itemGroup(item);const verdictKey={ok:"verdictOk",review:"verdictReview",block:"verdictBlock"}[assessment.verdict];const whoKey={llm:"whoLlm",vectors:"whoVectors",human:"whoHuman"}[assessment.source];card.append(element("span","assess-line",VP.t("assessLabel")+": "+(verdictKey?VP.t(verdictKey):VP.t("notAssessed"))+" · "+VP.t("byLabel")+": "+(whoKey?VP.t(whoKey):"—")+" · "+VP.t("groupLabel")+": "+groupName(group)));
 const reasons=(assessment.reasons||[]).filter(Boolean);const reason=reasons.slice().reverse().find(text=>String(text).startsWith("LLM: "))||reasons[0];if(reason)card.append(element("div","assess-reason","«"+String(reason).replace(/^LLM: /,"")+"»"));
 const select=element("select","group-select");for(const value of ["kids","teen","adult"]){const option=element("option","",groupName(value));option.value=value;select.append(option)}select.value=group;select.title=VP.t("groupLabel");select.onclick=event=>event.stopPropagation();select.onchange=()=>setGroup(item,select.value);head.append(select);
