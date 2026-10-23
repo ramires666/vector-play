@@ -581,7 +581,7 @@ def moderation_set_group(memory_id: int, request: Request,
         "verdict": {"kids": "ok", "teen": "review", "adult": "block"}[group],
         "group": group,
         "source": "human",
-        "reasons": ["Группу допуска изменили вручную"],
+        "reasons": [moderation.reason_text("group_manual", item["model"])],
         "mode": moderation.MODE,
         "profile": moderation.PROFILE,
     })

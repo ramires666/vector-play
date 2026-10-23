@@ -66,9 +66,39 @@ class ProfileTests(unittest.TestCase):
     def test_prompt_mentions_age_and_json(self):
         for profile in ("kids", "teen"):
             with patch.object(moderation, "PROFILE", profile):
-                prompt = moderation.system_prompt()
+                prompt = moderation.system_prompt("ru-rusvectores")
                 self.assertIn(moderation.PROFILES[profile]["age"], prompt)
                 self.assertIn('"verdict"', prompt)
+                self.assertIn("по-русски", prompt)
+
+    def test_english_model_gets_english_prompt(self):
+        for profile in ("kids", "teen"):
+            with patch.object(moderation, "PROFILE", profile):
+                prompt = moderation.system_prompt("en-small")
+                self.assertIn(moderation.PROFILES[profile]["age_en"], prompt)
+                self.assertIn("in English", prompt)
+                self.assertNotIn(moderation.PROFILES[profile]["age"], prompt)
+
+
+class ReasonLanguageTests(unittest.TestCase):
+    """Обоснования оценки пишутся на языке модели: en → английский, ru → русский."""
+
+    def test_reason_text_follows_model_language(self):
+        self.assertEqual(moderation.reason_text("group_manual", "en-small"),
+                         "The access group was changed manually")
+        self.assertEqual(moderation.reason_text("group_manual", "ru-rusvectores"),
+                         "Группу допуска изменили вручную")
+        self.assertIn("3", moderation.reason_text("neighbors", "en-small", n=3))
+        self.assertEqual(moderation.reason_text("unknown-key", "en-small"), "unknown-key")
+
+    def test_review_reasons_are_english_for_english_model(self):
+        terms = [{"text": "king", "weight": 1}, {"text": "man", "weight": -1}, {"text": "woman", "weight": 1}]
+        results = [{"token": "queen", "text": "queen"}]
+        report = moderation.review(terms, results, model_id="en-small", use_llm=False)
+        self.assertEqual(report["verdict"], "ok")
+        self.assertTrue(any("No issues found" in reason for reason in report["reasons"]), report["reasons"])
+        report = moderation.review(terms, results, model_id="ru-rusvectores", use_llm=False)
+        self.assertTrue(any("Замечаний не найдено" in reason for reason in report["reasons"]), report["reasons"])
 
 
 class ModeTests(unittest.TestCase):

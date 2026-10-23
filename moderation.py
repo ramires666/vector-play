@@ -71,6 +71,14 @@ PROFILES: dict[str, dict] = {
         "examples": ('"король − мужчина + женщина = королева" → ok; '
                      '"петух − курица + гусь = петух" → ok (птицы); '
                      '"женщина − человек + мужчина = козёл" → block (оскорбление женщин)'),
+        "age_en": "children from 7 years old",
+        "forbid_en": ("profanity and coarse insults, sex and pornography, violence and cruelty, "
+                      "racism, sexism, homophobia, bullying, drugs, political attacks and campaigning"),
+        "allow_en": ("neutral and funny examples about animals, food, cities, professions, "
+                     "fairy tales, technology and science"),
+        "examples_en": ('"king − man + woman = queen" → ok; '
+                        '"rooster − hen + goose = rooster" → ok (birds); '
+                        '"woman − human + man = goat" → block (an insult to women)'),
     },
     "teen": {
         "age": "подростки до 18 лет",
@@ -85,6 +93,15 @@ PROFILES: dict[str, dict] = {
                      '"петух − курица + гусь = петух" → ok (птицы); '
                      '"женщина − человек + мужчина = козёл" → review (грубо, но не блокировать); '
                      '"армянин − человек + грузин = ..." → block (национальная неприязнь)'),
+        "age_en": "teenagers under 18",
+        "forbid_en": ("bullying and humiliation of particular people or groups, racism, sexism, "
+                      "homophobia, pornography, scenes of violence, drug propaganda, political campaigning"),
+        "allow_en": ("rough humour, slang, internet memes, adult topics without propaganda, "
+                     "as well as animals, food, cities, professions, technology and science"),
+        "examples_en": ('"king − man + woman = queen" → ok; '
+                        '"rooster − hen + goose = rooster" → ok (birds); '
+                        '"woman − human + man = goat" → review (rude, but not a block); '
+                        '"armenian − human + georgian = ..." → block (ethnic hostility)'),
     },
 }
 
@@ -103,9 +120,60 @@ def level_for(category: str | None) -> str | None:
     return PROFILES[PROFILE].get(category)
 
 
-def system_prompt() -> str:
-    """Промпт для LLM под текущий профиль аудитории."""
+def language_for(model_id: str | None = None) -> str:
+    """Язык модели: от него зависят язык промпта LLM и язык обоснований оценки."""
+    try:
+        return engine.MANAGER.spec(model_id or engine.MANAGER.default_id).language
+    except Exception:
+        return "ru"
+
+
+# Обоснования оценки пишутся на языке модели (русская — по-русски, английская —
+# по-английски), чтобы в интерфейсе не смешивались языки.
+REASONS: dict[str, dict[str, str]] = {
+    "ru": {
+        "block": "Мат или грубое оскорбление в словах/ответе (словарь)",
+        "sensitive_answer": "Ответ задевает спорную тему (словарь)",
+        "neighbors": "Среди ближайших слов {n} спорных (вектора)",
+        "clean": "Замечаний не найдено: словари и ближайшие слова чистые",
+        "group_manual": "Группу допуска изменили вручную",
+    },
+    "en": {
+        "block": "Profanity or a coarse insult in the terms/answer (dictionary)",
+        "sensitive_answer": "The answer touches a sensitive topic (dictionary)",
+        "neighbors": "{n} suspicious words among the nearest neighbours (vectors)",
+        "clean": "No issues found: dictionaries and nearest neighbours are clean",
+        "group_manual": "The access group was changed manually",
+    },
+}
+
+
+def reason_text(key: str, model_id: str | None = None, **params) -> str:
+    """Обоснование на языке модели; неизвестный ключ возвращается как есть."""
+    table = REASONS.get(language_for(model_id), REASONS["ru"])
+    text = table.get(key) or REASONS["ru"].get(key, key)
+    for name, value in params.items():
+        text = text.replace("{" + name + "}", str(value))
+    return text
+
+
+def system_prompt(model_id: str | None = None) -> str:
+    """Промпт для LLM под текущий профиль аудитории и язык модели."""
     profile = PROFILES[PROFILE]
+    if language_for(model_id) == "en":
+        return (
+            f"You are a strict but friendly moderator of a collection of word equations "
+            f"viewed by {profile['age_en']}. You get an equation built by adding and subtracting "
+            "words, plus the embedding model's answer. Decide whether this example may be shown.\n"
+            f"Forbidden: {profile['forbid_en']}.\n"
+            f"Allowed: {profile['allow_en']}.\n"
+            "Important: judge the COMBINATION, not individual words. The result may be offensive "
+            "to a group of people even when every single word is neutral.\n"
+            f"Examples: {profile['examples_en']}.\n"
+            "When in doubt, choose review instead of ok.\n"
+            'Answer with STRICTLY one JSON object and nothing else: {"verdict":"ok|review|block",'
+            '"categories":["..."],"reason":"brief, in English"}'
+        )
     return (
         f"Ты — строгий, но доброжелательный модератор коллекции словесных примеров, "
         f"которую смотрят {profile['age']}. Тебе дают уравнение из сложения и вычитания слов "
@@ -225,17 +293,22 @@ def format_equation(terms, answer: str | None) -> str:
     return f"{equation} = {answer}" if answer else equation
 
 
-def llm_review(equation: str) -> dict | None:
-    """Смысловая проверка через OpenAI-совместимый API. None — если недоступно."""
+def llm_review(equation: str, model_id: str | None = None) -> dict | None:
+    """Смысловая проверка через OpenAI-совместимый API. None — если недоступно.
+
+    Язык промпта (и, значит, обоснования) — язык модели: английская модель
+    получает английский промпт, русская — русский.
+    """
     if not LLM_URL:
         return None
+    english = language_for(model_id) == "en"
     payload = {
         "model": LLM_MODEL,
         "temperature": 0,
         "max_tokens": LLM_MAX_TOKENS,
         "messages": [
-            {"role": "system", "content": system_prompt()},
-            {"role": "user", "content": f"Уравнение: {equation}"},
+            {"role": "system", "content": system_prompt(model_id)},
+            {"role": "user", "content": ("Equation: " if english else "Уравнение: ") + equation},
         ],
     }
     if LLM_NO_THINK:
@@ -315,21 +388,21 @@ def review(terms, results, model_id: str | None = None, use_llm: bool = True) ->
     if terms_level == "block" or answer_level == "block":
         verdict = "block"
         categories.append("obscene")
-        reasons.append("Мат или грубое оскорбление в словах/ответе (словарь)")
+        reasons.append(reason_text("block", model_id))
     else:
         suspicious = [word for word, category in result_hits.items() if level_for(category)]
         if answer_level == "review":
             verdict = "review"
             categories.append("sensitive-answer")
-            reasons.append("Ответ задевает спорную тему (словарь)")
+            reasons.append(reason_text("sensitive_answer", model_id))
         elif len(suspicious) >= MIN_NEIGHBOR_HITS:
             verdict = "review"
             categories.append("sensitive-neighbors")
-            reasons.append(f"Среди ближайших слов {len(suspicious)} спорных (вектора)")
+            reasons.append(reason_text("neighbors", model_id, n=len(suspicious)))
 
     llm = None
     if use_llm and LLM_URL and MODE != "off":
-        llm = llm_review(format_equation(terms, answer))
+        llm = llm_review(format_equation(terms, answer), model_id)
         if llm is not None:
             if _LEVEL[llm["verdict"]] > _LEVEL[verdict]:
                 verdict = llm["verdict"]
@@ -338,7 +411,7 @@ def review(terms, results, model_id: str | None = None, use_llm: bool = True) ->
                 reasons.append("LLM: " + llm["reason"])
 
     if verdict == "ok" and not reasons:
-        reasons.append("Замечаний не найдено: словари и ближайшие слова чистые")
+        reasons.append(reason_text("clean", model_id))
 
     return {
         "verdict": verdict,
@@ -378,6 +451,7 @@ def main(argv=None) -> int:
     parser.add_argument("--hash", metavar="СЛОВО", help="sha256 для строки списка модерации")
     parser.add_argument("--check", metavar="ТЕКСТ", help="проверить текст словарями")
     parser.add_argument("--llm", metavar="УРАВНЕНИЕ", help="проверить уравнение через LLM")
+    parser.add_argument("--model", metavar="ID", help="модель для --llm/--check: язык промпта и обоснований")
     parser.add_argument("--mode", action="store_true", help="показать профиль, режим и настройки LLM")
     args = parser.parse_args(argv)
 
@@ -391,11 +465,12 @@ def main(argv=None) -> int:
     if args.hash:
         print(_hash(args.hash))
     if args.check:
-        hits = check_text(args.check)
-        print(json.dumps({"hits": hits, "level": level_of_text(args.check), "profile": PROFILE},
-                         ensure_ascii=False))
+        lang = language_for(args.model)
+        hits = check_text(args.check, lang)
+        print(json.dumps({"hits": hits, "level": level_of_text(args.check, lang),
+                          "profile": PROFILE, "language": lang}, ensure_ascii=False))
     if args.llm:
-        print(json.dumps(llm_review(args.llm), ensure_ascii=False, indent=2))
+        print(json.dumps(llm_review(args.llm, args.model), ensure_ascii=False, indent=2))
     return 0
 
 
