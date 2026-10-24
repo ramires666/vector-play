@@ -4,6 +4,9 @@
 
 Type an equation of words (`king − man + woman`) and the app finds the closest concept in the model's **entire vocabulary** (`queen`). Save funny results to a shared collection, browse what other visitors have saved, and keep the gallery safe for children with a three-layer moderation pipeline (dictionaries + vector heuristics + an optional local LLM).
 
+**[▶ Try VectorPlay live](https://vector.grom.world/)** — play directly on the author's server in your browser, with **no installation required**.
+Explore the [shared Memories gallery](https://vector.grom.world/memories).
+
 Repository: <https://github.com/ramires666/vector-play>
 
 ---
@@ -69,6 +72,10 @@ Verified on real models with the shipped code, not on a hand-picked candidate li
 ---
 
 ## Quick start
+
+Want to try the app first? **[Open the live demo at vector.grom.world](https://vector.grom.world/)**. It runs on the author's own server, so you can calculate and explore word embeddings without installing Python, Docker or models locally.
+
+To self-host VectorPlay, follow the steps below.
 
 ### Windows
 
